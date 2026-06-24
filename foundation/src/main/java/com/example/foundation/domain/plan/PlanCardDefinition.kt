@@ -20,7 +20,7 @@ data class FollowUp(
   val options: List<String>,
   val triggers: Set<String> = emptySet(), // 空集表示任意主选都触发
   val skip: Set<String> = emptySet(), // 命中则不展示二级
-  val multiSelect: Boolean = true,
+  val enableMultiSelect: Boolean = false,
 )
 
 /** 给定当前主选项，返回应展示的二级选单；不满足触发条件返回 null。 */

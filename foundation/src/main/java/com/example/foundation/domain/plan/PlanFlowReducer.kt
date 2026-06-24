@@ -38,11 +38,17 @@ object PlanFlowReducer {
 
   fun toggleFollowUp(state: PlanFlowState, label: String): PlanFlowState {
     val mainSelected = state.currentAnswer()?.selectedOptions.orEmpty()
-    val activeOptions = state.currentDefinition.activeFollowUp(mainSelected)?.options.orEmpty()
-    if (label !in activeOptions) return state
-    val selected = state.currentAnswer()?.subSelections.orEmpty().toMutableList()
-    if (!selected.remove(label)) selected.add(label)
-    return updateAnswer(state, subSelections = selected)
+    val followUp = state.currentDefinition.activeFollowUp(mainSelected) ?: return state
+    if (label !in followUp.options) return state
+    val nextSub =
+      if (followUp.enableMultiSelect) {
+        val selected = state.currentAnswer()?.subSelections.orEmpty().toMutableList()
+        if (!selected.remove(label)) selected.add(label)
+        selected
+      } else {
+        listOf(label)
+      }
+    return updateAnswer(state, subSelections = nextSub)
   }
 
   fun setHour(state: PlanFlowState, hour: Int): PlanFlowState =

@@ -1,7 +1,7 @@
 package com.example.libui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,11 +28,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.example.libui.R
 import com.example.libui.theme.Dimens
+import kotlin.math.abs
 
 /**
  * 卡片框架：厚卡面（圆角 + 底部硬阴影）填满容器，避免内容不足时露出底色。
  * 顶部为 M3 风格栏：两侧圆形图标按钮（上一张 / 跳过）+ 居中标题与步骤。
- * 保留下滑手势回退。
+ * 支持松手阈值触发的横滑换卡与下滑回退，单次手势仅触发一次导航。
  */
 @Composable
 fun PlanCardFrame(
@@ -42,24 +43,25 @@ fun PlanCardFrame(
   onSkip: () -> Unit,
   canGoPrevious: Boolean,
   modifier: Modifier = Modifier,
+  canGoNext: Boolean = true,
+  horizontalSwipeEnabled: Boolean = true,
   onSwipeDown: (() -> Unit)? = null,
+  onSwipeNext: (() -> Unit)? = null,
+  onSwipePrevious: (() -> Unit)? = null,
   content: @Composable () -> Unit,
 ) {
   val shape = RoundedCornerShape(Dimens.radiusCard)
   val scheme = MaterialTheme.colorScheme
-  val swipeModifier =
-    if (onSwipeDown != null && canGoPrevious) {
-      Modifier.pointerInput(canGoPrevious) {
-        detectVerticalDragGestures { _, dragAmount ->
-          if (dragAmount > 24f) onSwipeDown()
-        }
-      }
-    } else {
-      Modifier
-    }
+  val swipeModifier = Modifier.planCardNavGestures(
+    canGoPrevious = canGoPrevious,
+    canGoNext = canGoNext,
+    horizontalSwipeEnabled = horizontalSwipeEnabled,
+    onSwipeDown = onSwipeDown,
+    onSwipeNext = onSwipeNext,
+    onSwipePrevious = onSwipePrevious,
+  )
 
   Box(modifier = modifier.padding(horizontal = Dimens.screenPadding)) {
-    // 底部硬阴影层
     Box(
       modifier = Modifier
         .matchParentSize()
@@ -92,6 +94,48 @@ fun PlanCardFrame(
         content()
       }
     }
+  }
+}
+
+private fun Modifier.planCardNavGestures(
+  canGoPrevious: Boolean,
+  canGoNext: Boolean,
+  horizontalSwipeEnabled: Boolean,
+  onSwipeDown: (() -> Unit)?,
+  onSwipeNext: (() -> Unit)?,
+  onSwipePrevious: (() -> Unit)?,
+): Modifier {
+  val hasHorizontal = horizontalSwipeEnabled && (canGoPrevious || canGoNext)
+  val hasVertical = canGoPrevious && onSwipeDown != null
+  if (!hasHorizontal && !hasVertical) return this
+
+  return pointerInput(canGoPrevious, canGoNext, horizontalSwipeEnabled) {
+    val threshold = Dimens.swipeNavThreshold.toPx()
+    var totalX = 0f
+    var totalY = 0f
+    detectDragGestures(
+      onDragStart = {
+        totalX = 0f
+        totalY = 0f
+      },
+      onDrag = { _, amount ->
+        totalX += amount.x
+        totalY += amount.y
+      },
+      onDragEnd = {
+        when {
+          hasHorizontal &&
+            abs(totalX) >= threshold &&
+            abs(totalX) > abs(totalY) -> when {
+            totalX < 0 && canGoNext -> onSwipeNext?.invoke()
+            totalX > 0 && canGoPrevious -> onSwipePrevious?.invoke()
+          }
+          hasVertical &&
+            totalY >= threshold &&
+            abs(totalY) > abs(totalX) -> onSwipeDown?.invoke()
+        }
+      },
+    )
   }
 }
 

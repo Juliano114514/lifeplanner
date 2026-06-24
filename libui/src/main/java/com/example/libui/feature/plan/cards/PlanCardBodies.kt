@@ -74,7 +74,7 @@ fun TagCard(
           TagChoiceGroup(
             options = spec.options,
             selected = answer?.subSelections.orEmpty(),
-            multiSelect = spec.multiSelect,
+            multiSelect = spec.enableMultiSelect,
             onToggle = onToggleFollowUp,
             onSelect = onToggleFollowUp,
           )

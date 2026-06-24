@@ -20,9 +20,26 @@ object PlanCardCatalog {
     title = "在哪里",
     options = listOf("在家", "北区", "研究生部", "出差"),
     skip = setOf("休息"),
+    enableMultiSelect = true,
   )
 
   val cards: List<PlanCardDefinition> = listOf(
+    PlanCardDefinition(
+      type = PlanCardType.WORK,
+      title = "学习 / 工作",
+      interaction = PlanInteraction.MULTI_TAG,
+      options = listOf("早上", "下午", "晚上", "休息"),
+      exclusiveOption = "休息",
+      followUp = workFollowUp,
+    ),
+    PlanCardDefinition(
+      type = PlanCardType.GO_OUT,
+      title = "出门",
+      interaction = PlanInteraction.MULTI_TAG,
+      options = listOf("早上", "下午", "晚上", "不出门"),
+      exclusiveOption = "不出门",
+      followUp = goOutFollowUp,
+    ),
     PlanCardDefinition(
       type = PlanCardType.BREAKFAST,
       title = "早餐",
@@ -45,20 +62,9 @@ object PlanCardCatalog {
       followUp = cookFollowUp,
     ),
     PlanCardDefinition(
-      type = PlanCardType.GO_OUT,
-      title = "出门",
-      interaction = PlanInteraction.MULTI_TAG,
-      options = listOf("早上", "下午", "晚上", "不出门"),
-      exclusiveOption = "不出门",
-      followUp = goOutFollowUp,
-    ),
-    PlanCardDefinition(
-      type = PlanCardType.WORK,
-      title = "学习 / 工作",
-      interaction = PlanInteraction.MULTI_TAG,
-      options = listOf("早上", "下午", "晚上", "休息"),
-      exclusiveOption = "休息",
-      followUp = workFollowUp,
+      type = PlanCardType.RETURN_HOME,
+      title = "晚上回家",
+      interaction = PlanInteraction.HOUR_TIME,
     ),
     PlanCardDefinition(
       type = PlanCardType.FITNESS,
@@ -71,11 +77,6 @@ object PlanCardCatalog {
         options = listOf("低", "中", "高"),
         skip = setOf("今日练休"),
       ),
-    ),
-    PlanCardDefinition(
-      type = PlanCardType.RETURN_HOME,
-      title = "晚上回家",
-      interaction = PlanInteraction.HOUR_TIME,
     ),
     PlanCardDefinition(
       type = PlanCardType.OTHER,

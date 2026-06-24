@@ -30,6 +30,11 @@ import com.example.libui.feature.plan.cards.TagCard
 import com.example.libui.theme.Dimens
 import com.example.libui.theme.Motion
 
+private val SWIPE_DISABLED_INTERACTIONS = setOf(
+  PlanInteraction.HOUR_TIME,
+  PlanInteraction.NOTE,
+)
+
 @Composable
 fun PlanContent(
   state: PlanUiState,
@@ -54,14 +59,14 @@ fun PlanContent(
         .fillMaxWidth()
         .padding(horizontal = Dimens.screenPadding)
         .padding(top = Dimens.space24),
-      horizontalAlignment = Alignment.CenterHorizontally,
+      horizontalAlignment = Alignment.Start,
       verticalArrangement = Arrangement.spacedBy(Dimens.space12),
     ) {
       Text(
         text = "${state.currentIndex + 1} / ${state.totalCount}：${state.currentCard.title}",
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.onSurface,
-        textAlign = TextAlign.Center,
+        textAlign = TextAlign.Start,
       )
       PlanProgressBar(
         currentIndex = state.currentIndex,
@@ -74,7 +79,11 @@ fun PlanContent(
       onPrevious = { onAction(PlanAction.Previous) },
       onSkip = { onAction(PlanAction.Skip) },
       canGoPrevious = state.canGoPrevious,
+      canGoNext = !state.isLastCard,
+      horizontalSwipeEnabled = state.currentCard.interaction !in SWIPE_DISABLED_INTERACTIONS,
       onSwipeDown = { onAction(PlanAction.Previous) },
+      onSwipeNext = { onAction(PlanAction.Next) },
+      onSwipePrevious = { onAction(PlanAction.Previous) },
       modifier = Modifier.weight(1f),
     ) {
       // 仅以 currentIndex 作为换卡 key；每一帧渲染各自的 state 快照，

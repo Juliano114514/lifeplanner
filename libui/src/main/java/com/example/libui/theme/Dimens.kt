@@ -34,6 +34,9 @@ object Dimens {
   val gapTag = space8
   val cardPadding = space24
   val screenPadding = space16
+
+  /** 规划卡横/竖滑换卡的最小拖拽距离。 */
+  val swipeNavThreshold = 96.dp
 }
 
 /** 动效时长（毫秒）token，保证全链路节奏一致。 */
