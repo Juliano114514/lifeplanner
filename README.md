@@ -55,6 +55,10 @@
 | `libui` | Android Library | 设计主题、通用组件、无状态 Feature UI（`*Content`：仅 `UiState` + 回调，无 ViewModel / Repository） | `foundation` |
 | `app` | Android Application | Activity、导航、Koin DI、ViewModel、薄包装 Screen（`collect` 状态后委托 `*Content`） | `foundation`, `libroom`, `libui` |
 
+**一期实现范围**：一天规划链路（首页 → 规划流 → 结果页）已落地；库存统计模块见 §5.3 PRD，代码尚未接入。
+
+UI 视觉与交互规范见 [`项目ui交互语言设计.md`](项目ui交互语言设计.md)。
+
 版本与第三方依赖统一维护于 `gradle/libs.versions.toml`（Version Catalog）。
 
 **UI 分层约定**：`libui` 提供 `XxxContent(state, onAction)`；`app` 的 `XxxScreen` 负责注入 ViewModel、收集 `StateFlow`、处理导航与一次性 Effect。ViewModel 与 `NavGraph` 不进入 `libui`，以保持 `libui → foundation` 的依赖方向（不依赖 `libroom`）。
@@ -89,51 +93,59 @@ lifeplanner/
 ├── foundation/                                 // 纯 Kotlin JVM 模块
 │   └── src/main/java/com/example/foundation/
 │       ├── domain/
-│       │   └── model/
-│       │       ├── CardItem.kt                 // 卡片数据模型（密封类）
-│       │       ├── PlanResult.kt               // 规划结果
-│       │       └── InventorySnapshot.kt        // 盘点快照
-│       ├── csv/
-│       │   └── CsvParser.kt                    // CSV 解析与校验
+│       │   ├── model/
+│       │   │   ├── PlanCardType.kt             // 卡片类型枚举
+│       │   │   ├── PlanCardAnswer.kt           // 单卡答案（含 subSelection）
+│       │   │   └── PlanRecord.kt               // 规划主记录
+│       │   └── plan/
+│       │       ├── PlanCardCatalog.kt          // 8 张卡定义与选项
+│       │       ├── PlanCardDefinition.kt       // 卡元数据 + FollowUp 二级选单
+│       │       ├── PlanInteraction.kt          // 交互类型枚举
+│       │       └── PlanFlowReducer.kt          // 纯函数状态机（next/previous/skip）
 │       └── util/
-│           ├── TextExporter.kt                 // 纯文本导出
-│           └── DateTimeUtil.kt                 // 时间工具
+│           ├── PlanTextExporter.kt             // 按时段导出规划摘要
+│           └── DateTimeUtil.kt                 // 日期 / 过期判断
 │
-├── libroom/                                    // Room 数据层
+├── libroom/                                    // Room 数据层（一期已实现规划）
 │   └── src/main/java/com/example/libroom/
 │       ├── local/
-│       │   ├── AppDatabase.kt                  // Room Database
+│       │   ├── AppDatabase.kt                  // Room v2 + Migration 1→2
 │       │   ├── dao/
-│       │   │   ├── PlanDao.kt                  // 一天规划 DAO
-│       │   │   ├── CategoryDao.kt              // 库存大类 DAO
-│       │   │   ├── InventoryItemDao.kt         // 库存物品 DAO
-│       │   │   └── InventoryRecordDao.kt       // 盘点记录 DAO
-│       │   └── entity/                         // Room Entity（见 §4）
+│       │   │   └── PlanDao.kt
+│       │   ├── entity/                         // plan_record / plan_card_answer
+│       │   └── mapper/
+│       │       └── PlanMapper.kt
 │       └── repository/
-│           ├── PlanRepository.kt               // 规划数据仓库
-│           └── InventoryRepository.kt          // 库存数据仓库
+│           ├── PlanRepository.kt
+│           └── PlanRepositoryFactory.kt
 │
 ├── libui/                                      // Compose 展示层（无业务编排）
 │   └── src/main/java/com/example/libui/
-│       ├── theme/                              // Material3 主题
-│       │   ├── Color.kt
-│       │   ├── Type.kt
-│       │   └── Theme.kt
-│       ├── components/                         // 跨 Feature 复用组件
-│       │   ├── CardStack.kt                    // 卡片堆叠容器
-│       │   ├── ProgressBar.kt                  // 进度指示条
-│       │   ├── StatusSegmentedButton.kt        // 缺/较少/足够/过多 状态组
-│       │   └── QuantitySlider.kt               // 数量滑动条（带吸附）
-│       └── feature/                            // 无状态 Feature UI
+│       ├── theme/
+│       │   ├── Dimens.kt                       // 间距 / 圆角 / 厚度 / Motion token
+│       │   ├── Type.kt                         // 字体层级
+│       │   └── Theme.kt                        // Material3 色板注入
+│       ├── components/
+│       │   ├── TactileSurface.kt               // 3D 按压地基
+│       │   ├── ChunkyButton.kt                 // 厚主按钮
+│       │   ├── ChunkyChip.kt                   // 选项 chip
+│       │   ├── ChunkyCard.kt                   // 首页入口卡
+│       │   ├── TagChoiceGroup.kt               // chip 流式布局
+│       │   ├── PlanCardFrame.kt                // 规划卡外框
+│       │   ├── PlanProgressBar.kt              // 分段进度条
+│       │   ├── HourTimePicker.kt               // 归家时间
+│       │   └── ConfettiBurst.kt                // 结果页撒花
+│       └── feature/
 │           ├── home/
-│           │   └── HomeContent.kt              // 首页（两大入口）
-│           ├── plan/
-│           │   ├── PlanContent.kt              // 规划卡片流
-│           │   └── PlanResultContent.kt        // 规划结果 & 导出
-│           └── inventory/
-│               ├── CategoryListContent.kt      // 大类列表
-│               ├── InventoryContent.kt         // 盘点卡片流
-│               └── InventoryResultContent.kt   // 采购清单 & 导出
+│           │   ├── HomeContent.kt
+│           │   └── HomeContract.kt
+│           └── plan/
+│               ├── PlanContent.kt              // 规划卡片流
+│               ├── PlanContract.kt             // PlanUiState / PlanAction
+│               ├── PlanResultContent.kt
+│               ├── PlanResultContract.kt
+│               └── cards/
+│                   └── PlanCardBodies.kt       // TagCard / OtherNoteCard
 │
 ├── gradle/
 │   └── libs.versions.toml                      // 版本号 & 依赖坐标（Version Catalog）
@@ -158,6 +170,8 @@ lifeplanner/
 
 ### 4.2 表结构
 
+> Room 当前版本：**v2**（`AppDatabase`）。v1→v2 迁移：`plan_card_answer` 新增 `sub_selection` 列。
+
 #### `plan_record` — 规划主记录
 
 | 字段 | 类型 | 说明 |
@@ -166,7 +180,9 @@ lifeplanner/
 | `date` | TEXT (INDEXED) | 规划日期，`yyyy-MM-dd` |
 | `created_at` | INTEGER | 创建时间戳 (ms) |
 | `completed_at` | INTEGER? | 完成时间戳，null = 未完成（中断） |
-| `export_text` | TEXT? | 最终导出文本快照 |
+| `current_index` | INTEGER | 中断恢复：当前卡片索引 (0-based) |
+| `fitness_step` | TEXT | **遗留列**，域层已不再使用；二级选单改由 `plan_card_answer.sub_selection` 存储 |
+| `export_text` | TEXT? | 完成时导出的纯文本快照 |
 
 #### `plan_card_answer` — 单张卡片答案
 
@@ -174,11 +190,14 @@ lifeplanner/
 |---|---|---|
 | `id` | INTEGER (PK, auto) | 主键 |
 | `plan_record_id` | INTEGER (FK → plan_record) | 所属规划 |
-| `card_type` | TEXT | 卡片类型枚举：`GO_OUT` / `WORK` / `FITNESS` / `BREAKFAST` / `LUNCH` / `DINNER` / `RETURN_HOME` |
+| `card_type` | TEXT | `GO_OUT` / `WORK` / `FITNESS` / `BREAKFAST` / `LUNCH` / `DINNER` / `RETURN_HOME` / `OTHER` |
 | `card_index` | INTEGER | 卡片顺序位置 (0-based) |
-| `selected_options` | TEXT | 多选存储，JSON 数组，如 `["早","下午"]` |
-| `slider_value` | REAL? | 滑动条数值（仅健身强度等卡片使用） |
-| `time_value` | TEXT? | 时间选择器值（仅归家卡片），`HH:mm` |
+| `selected_options` | TEXT | 主选项，JSON 数组，如 `["早","下午"]` 或 `["自己做"]` |
+| `sub_selection` | TEXT? | 条件二级选单，如健身强度 `低`、三餐 `没菜去买菜` |
+| `slider_value` | REAL? | **遗留列**，域层已不再使用 |
+| `time_value` | TEXT? | 归家时间，`HH:mm` |
+| `note_text` | TEXT? | 「其他」主备注 |
+| `extra_notes` | TEXT? | 额外备注列表，JSON 数组 |
 
 #### `inventory_category` — 库存大类
 
@@ -243,28 +262,44 @@ lifeplanner/
 
 ### 5.2 模块一：一天规划
 
-#### 卡片流（共 7 张）
+> UI 交互与视觉规范见 [`项目ui交互语言设计.md`](项目ui交互语言设计.md)。
 
-| # | 卡片 | 交互 | 选项 |
-|---|---|---|---|
-| 1 | 出门 | **多选 Tag** | `早` `下午` `晚上` `不出门`（选"不出门"自动清空其余） |
-| 2 | 学习 / 工作 | **多选 Tag** | `早` `下午` `晚上` `休息` |
-| 3 | 健身 | **第一步**多选时段 → **第二步**强度 | 时段：`早` `下午` `晚上` `今日练休`；强度：`低` `中` `高` |
-| 4 | 早餐 | **单选** | `自己做` `出去吃` `外卖` `不吃` |
-| 5 | 午餐 | **单选** | 同上 |
-| 6 | 晚餐 | **单选** | 同上 |
-| 7 | 归家 | **TimePicker** | 滑动刻度盘，选择预计到家时间（精确到小时就行） |
-| 8 | 其他 | 可以通过 + button 增加新的备注事项 | hint 文本：今天有什么额外要做的事情 |
+#### 领域模型（`foundation/domain/plan`）
 
-- **跳过逻辑**：允许跳过任意卡片，跳过的卡片值置空。
-- **容错**：提供"上一张"按钮 / 下滑手势回退修改。
+| 类型 | 职责 |
+|---|---|
+| `PlanCardCatalog` | 8 张卡的标题、选项、`FollowUp` 配置 |
+| `PlanCardDefinition` | 单卡元数据：`interaction`、互斥项、`followUp` |
+| `FollowUp` | 条件二级选单（主选触发后在**同卡内**展开，不切换整卡） |
+| `PlanFlowReducer` | 纯函数状态机：`toggleTag` / `selectSingle` / `toggleFollowUp` / `next` / `previous` / `skip` |
+| `PlanFlowState` | `currentIndex` + `answers: Map<PlanCardType, PlanCardAnswer>` |
+
+#### 卡片流（共 8 张）
+
+| # | 卡片 | 交互 | 主选项 | 条件二级（FollowUp） |
+|---|---|---|---|---|
+| 1 | 早餐 | 单选 Tag | `自己做` `出去吃` `外卖` `不吃` | **怎么做**（仅「自己做」，多选）：`有菜了` `要去买菜` `要外卖点菜` |
+| 2 | 午餐 | 单选 Tag | 同上 | 同上 |
+| 3 | 晚餐 | 单选 Tag | 同上 | 同上 |
+| 4 | 出门 | 多选 Tag | `早上` `下午` `晚上` `不出门` | **出门做什么**（非「不出门」，多选）：`出去玩` `出去办事` `出去团建` |
+| 5 | 学习 / 工作 | 多选 Tag | `早上` `下午` `晚上` `休息` | **在哪里**（非「休息」，多选）：`在家` `北区` `研究生部` `出差` |
+| 6 | 健身 | 多选 Tag | `早上` `下午` `晚上` `今日练休` | **强度**（多选）：`低` `中` `高`（「今日练休」时跳过） |
+| 7 | 晚上回家 | 时间选择 | 滑动选择预计到家小时（6–23） | — |
+| 8 | 其他 | 备注 | 主备注 +「添加备注」追加多条 | — |
+
+- **二级选单规则**：主选满足 `FollowUp.triggers`（空集表示任意主选触发）且未命中 `skip` 时，卡内纵向展开二级区；答案写入 `subSelections`（JSON 数组，存于 `sub_selection` 列）。
+- **跳过**：任意卡片可跳过，该卡答案置空并前进。
+- **回退**：顶栏「上一张」+ 下滑手势；换卡导航 250ms 防抖。
+- **中断恢复**：每次答题与换卡写入 Room；当日未完成记录在 12h 内可恢复 `current_index` 与已有答案。
 
 #### 结果页
 
-- 按时间线（早 → 下午 → 晚）生成今日行程摘要文本。
-- 操作：**一键复制到剪贴板**（一期仅纯文本，不做图片导出）。
+- `PlanTextExporter` 按 **早晨 → 下午 → 晚上 → 其他** 生成摘要；餐食含二级时格式为 `早餐：自己做 · 没菜去买菜`。
+- 操作：**一键复制到剪贴板** + 返回首页（一期纯文本，不做图片导出）。
 
-### 5.3 模块二：库存统计
+### 5.3 模块二：库存统计（PRD · 待实现）
+
+> 以下为目标能力描述；`libroom` / `libui` 中尚未包含库存相关 DAO 与 UI。
 
 #### CSV 导入
 
@@ -309,10 +344,11 @@ lifeplanner/
 
 | 规范 | 说明 |
 |---|---|
-| **卡片流** | 居中单卡片渲染，点击选项 / 手势滑动进入下一张 |
-| **进度条** | 顶部展示 `当前/总数`（如 `2/8`） |
-| **回退** | "上一张"按钮 + 下滑手势 |
-| **中断恢复** | 离开卡片流时自动保存进度到 `inventory_session` / `plan_record`；重新进入若未过期（12h）则恢复到中断位置 |
+| **卡片流** | 居中单卡 `PlanCardFrame`；选选项后点底部「下一张」/「完成」推进 |
+| **进度** | 顶部分段进度条（8 段）+ 卡内标题下 `当前/总数`（如 `2 / 8`） |
+| **换卡动画** | 仅 `currentIndex` 变化时横滑；二级 follow-up 卡内展开，不触发整卡动画 |
+| **回退** | 顶栏「上一张」+ 下滑手势 |
+| **中断恢复** | 规划：`plan_record.current_index` + `plan_card_answer`；盘点：`inventory_session`（12h 过期） |
 | **空状态** | 无数据时展示空状态插画 + 引导文案 |
 
 ---
@@ -320,18 +356,21 @@ lifeplanner/
 ## 7. 数据流（MVI）
 
 ```
-User Action
+User Action (PlanAction)
     ↓
-[Intent] ──→ ViewModel.reduce()
+PlanViewModel.onAction()
     ↓
-[State] (immutable data class)
+PlanFlowReducer（纯函数，foundation）
     ↓
-Compose UI 重组渲染
+PlanRepository 持久化 + publishFlowState()
+    ↓
+PlanUiState → PlanContent 重组
 ```
 
-- **State** 单一数据源，ViewModel 持有 `StateFlow<UiState>`。
-- **Effect**（一次性事件，如 Toast / 导航跳转）通过 `Channel` 发送。
-- Room DAO 返回 `Flow<List<T>>`，ViewModel 中 `flatMapLatest` 合并为 UiState。
+- **State**：`StateFlow<PlanUiState>` 为 UI 单一数据源。
+- **Effect**：导航等一次性事件经 `SharedFlow<PlanEffect>` 发出（如跳转结果页）。
+- **分层**：领域逻辑在 `foundation`（无 Android 依赖）；`libui` 只消费 `UiState` + 回调 `PlanAction`；`app` 的 `PlanScreen` 连接 ViewModel 与 `PlanContent`。
+- **扩展新卡**：在 `PlanCardCatalog` 追加定义；若需二级，配置 `followUp` 即可，通常无需改 UI。
 
 ---
 
@@ -345,6 +384,7 @@ Compose UI 重组渲染
 | 4 | 中断恢复？ | **支持**，通过 `inventory_session` 记录中断位置，设置 12h 过期 |
 | 5 | 卡片流是否允许跳过？ | **允许**，跳过项置空，不强制全填 |
 | 6 | 导出格式？ | **一期仅纯文本复制**，二期可拓展图片导出 |
+| 7 | 健身 / 餐食二级选单？ | **同卡内 FollowUp 展开**，存 `sub_selection`；不再使用子步骤整卡切换 |
 
 ---
 

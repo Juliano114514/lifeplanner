@@ -38,7 +38,7 @@ object PlanMapper {
       card_type = answer.cardType.name,
       card_index = answer.cardIndex,
       selected_options = encodeList(answer.selectedOptions),
-      sub_selection = answer.subSelection,
+      sub_selection = encodeSubSelections(answer.subSelections),
       time_value = answer.timeValue,
       note_text = answer.noteText,
       extra_notes = encodeList(answer.extraNotes).takeIf { answer.extraNotes.isNotEmpty() },
@@ -50,11 +50,22 @@ object PlanMapper {
       cardType = PlanCardType.valueOf(entity.card_type),
       cardIndex = entity.card_index,
       selectedOptions = decodeList(entity.selected_options),
-      subSelection = entity.sub_selection,
+      subSelections = decodeSubSelections(entity.sub_selection),
       timeValue = entity.time_value,
       noteText = entity.note_text,
       extraNotes = entity.extra_notes?.let(::decodeList).orEmpty(),
     )
+  }
+
+  private fun encodeSubSelections(values: List<String>): String? {
+    if (values.isEmpty()) return null
+    return encodeList(values)
+  }
+
+  private fun decodeSubSelections(raw: String?): List<String> {
+    if (raw.isNullOrBlank()) return emptyList()
+    if (raw.trimStart().startsWith("[")) return decodeList(raw)
+    return listOf(raw)
   }
 
   private fun encodeList(values: List<String>): String {

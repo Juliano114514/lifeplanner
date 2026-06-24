@@ -8,6 +8,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,7 @@ import com.example.foundation.domain.plan.PlanCardDefinition
 import com.example.foundation.domain.plan.activeFollowUp
 import com.example.libui.components.TagChoiceGroup
 import com.example.libui.theme.Dimens
+import com.example.libui.theme.SectionTitleStyle
 
 /**
  * 标签卡：主选（单/多）+ 条件二级选单。二级在满足触发条件时于卡内展开，
@@ -37,13 +39,15 @@ fun TagCard(
   multiSelect: Boolean,
   onToggle: (String) -> Unit,
   onSelect: (String) -> Unit,
-  onSelectFollowUp: (String) -> Unit,
+  onToggleFollowUp: (String) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val selected = answer?.selectedOptions.orEmpty()
   val followUp = definition.activeFollowUp(selected)
   Column(
-    modifier = modifier.fillMaxWidth(),
+    modifier = modifier
+      .fillMaxWidth()
+      .padding(vertical = Dimens.space8),
     verticalArrangement = Arrangement.spacedBy(Dimens.space24),
   ) {
     TagChoiceGroup(
@@ -64,15 +68,15 @@ fun TagCard(
         Column(verticalArrangement = Arrangement.spacedBy(Dimens.space12)) {
           Text(
             text = spec.title,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = SectionTitleStyle,
+            color = MaterialTheme.colorScheme.onSurface,
           )
           TagChoiceGroup(
             options = spec.options,
-            selected = answer?.subSelection?.let(::listOf).orEmpty(),
-            multiSelect = false,
-            onToggle = {},
-            onSelect = onSelectFollowUp,
+            selected = answer?.subSelections.orEmpty(),
+            multiSelect = spec.multiSelect,
+            onToggle = onToggleFollowUp,
+            onSelect = onToggleFollowUp,
           )
         }
       }

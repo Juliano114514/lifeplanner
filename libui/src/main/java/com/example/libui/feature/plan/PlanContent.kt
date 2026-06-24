@@ -14,9 +14,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import com.example.foundation.domain.plan.PlanInteraction
 import com.example.libui.components.ChunkyButton
 import com.example.libui.components.HourTimePicker
@@ -44,13 +47,27 @@ fun PlanContent(
     modifier = modifier
       .fillMaxSize()
       .padding(top = Dimens.space16, bottom = Dimens.space24),
-    verticalArrangement = Arrangement.spacedBy(Dimens.space16),
+    verticalArrangement = Arrangement.spacedBy(Dimens.space24),
   ) {
-    PlanProgressBar(
-      currentIndex = state.currentIndex,
-      totalCount = state.totalCount,
-      modifier = Modifier.padding(horizontal = Dimens.screenPadding),
-    )
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = Dimens.screenPadding)
+        .padding(top = Dimens.space24),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(Dimens.space12),
+    ) {
+      Text(
+        text = "${state.currentIndex + 1} / ${state.totalCount}：${state.currentCard.title}",
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        textAlign = TextAlign.Center,
+      )
+      PlanProgressBar(
+        currentIndex = state.currentIndex,
+        totalCount = state.totalCount,
+      )
+    }
     PlanCardFrame(
       title = state.currentCard.title,
       step = "${state.currentIndex + 1} / ${state.totalCount}",
@@ -83,7 +100,8 @@ fun PlanContent(
       onClick = { onAction(PlanAction.Next) },
       modifier = Modifier
         .fillMaxWidth()
-        .padding(horizontal = Dimens.screenPadding),
+        .padding(horizontal = Dimens.screenPadding)
+        .padding(bottom = Dimens.space16),
     )
   }
 }
@@ -100,7 +118,7 @@ private fun CardBody(
       multiSelect = state.currentCard.interaction == PlanInteraction.MULTI_TAG,
       onToggle = { onAction(PlanAction.ToggleTag(it)) },
       onSelect = { onAction(PlanAction.SelectSingle(it)) },
-      onSelectFollowUp = { onAction(PlanAction.SelectFollowUp(it)) },
+      onToggleFollowUp = { onAction(PlanAction.ToggleFollowUp(it)) },
     )
     PlanInteraction.HOUR_TIME -> {
       val hour = state.currentAnswer?.timeValue

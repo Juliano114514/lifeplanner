@@ -24,6 +24,12 @@ object Dimens {
   val depthCard = 4.dp
   val depthChip = 3.dp
 
+  // Chip 描边与对勾槽位
+  val chipBorderUnselected = 1.dp
+  val chipBorderSelected = 2.dp
+  val chipIconSize = 18.dp
+  val chipIconGap = space4
+
   // 语义化节奏
   val gapTag = space8
   val cardPadding = space24

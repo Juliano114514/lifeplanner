@@ -55,3 +55,12 @@ val Typography = Typography(
     lineHeight = 20.sp,
   ),
 )
+
+/** 二级 follow-up 区小节标题：比选项略小、字重更高，与 chip 文本拉开层级。 */
+val SectionTitleStyle = TextStyle(
+  fontFamily = FontFamily.Default,
+  fontWeight = FontWeight.Bold,
+  fontSize = 14.sp,
+  lineHeight = 18.sp,
+  letterSpacing = 0.1.sp,
+)

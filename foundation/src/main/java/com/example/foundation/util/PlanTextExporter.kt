@@ -4,7 +4,7 @@ import com.example.foundation.domain.model.PlanCardAnswer
 import com.example.foundation.domain.model.PlanCardType
 
 object PlanTextExporter {
-  private val morningSlots = setOf("早")
+  private val morningSlots = setOf("早上")
   private val afternoonSlots = setOf("下午")
   private val eveningSlots = setOf("晚上")
 
@@ -76,7 +76,7 @@ object PlanTextExporter {
     if (answer == null) return
     val matched = answer.selectedOptions.filter { it in slots }
     if (matched.isEmpty()) return
-    val detail = formatFitnessDetail(answer)
+    val detail = formatSubDetail(answer)
     lines += if (detail != null) {
       "$label（${matched.joinToString("、")}）：$detail"
     } else {
@@ -87,12 +87,13 @@ object PlanTextExporter {
   private fun appendMeal(lines: MutableList<String>, label: String, answer: PlanCardAnswer?) {
     val option = answer?.selectedOptions?.firstOrNull()?.takeIf { it.isNotBlank() } ?: return
     if (option == "不吃") return
-    val detail = answer.subSelection?.takeIf { it.isNotBlank() }
+    val detail = formatSubDetail(answer)
     lines += if (detail != null) "$label：$option · $detail" else "$label：$option"
   }
 
-  private fun formatFitnessDetail(answer: PlanCardAnswer): String? {
+  private fun formatSubDetail(answer: PlanCardAnswer): String? {
     if (answer.selectedOptions.contains("今日练休")) return "今日练休"
-    return answer.subSelection
+    val subs = answer.subSelections.filter { it.isNotBlank() }
+    return subs.takeIf { it.isNotEmpty() }?.joinToString("、")
   }
 }

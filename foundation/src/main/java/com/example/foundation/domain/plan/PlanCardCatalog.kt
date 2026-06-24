@@ -8,37 +8,21 @@ object PlanCardCatalog {
   private val mealOptions = listOf("自己做", "出去吃", "外卖", "不吃")
   private val cookFollowUp = FollowUp(
     title = "怎么做",
-    options = listOf("有菜了", "没菜去买菜", "没菜外卖点菜"),
+    options = listOf("有菜了", "要去买菜", "要外卖点菜"),
     triggers = setOf("自己做"),
+  )
+  private val goOutFollowUp = FollowUp(
+    title = "出门做什么",
+    options = listOf("出去玩", "出去办事", "出去团建"),
+    skip = setOf("不出门"),
+  )
+  private val workFollowUp = FollowUp(
+    title = "在哪里",
+    options = listOf("在家", "北区", "研究生部", "出差"),
+    skip = setOf("休息"),
   )
 
   val cards: List<PlanCardDefinition> = listOf(
-    PlanCardDefinition(
-      type = PlanCardType.GO_OUT,
-      title = "出门",
-      interaction = PlanInteraction.MULTI_TAG,
-      options = listOf("早", "下午", "晚上", "不出门"),
-      exclusiveOption = "不出门",
-    ),
-    PlanCardDefinition(
-      type = PlanCardType.WORK,
-      title = "学习 / 工作",
-      interaction = PlanInteraction.MULTI_TAG,
-      options = listOf("早", "下午", "晚上", "休息"),
-      exclusiveOption = "休息",
-    ),
-    PlanCardDefinition(
-      type = PlanCardType.FITNESS,
-      title = "健身",
-      interaction = PlanInteraction.MULTI_TAG,
-      options = listOf("早", "下午", "晚上", "今日练休"),
-      exclusiveOption = "今日练休",
-      followUp = FollowUp(
-        title = "强度",
-        options = listOf("低", "中", "高"),
-        skip = setOf("今日练休"),
-      ),
-    ),
     PlanCardDefinition(
       type = PlanCardType.BREAKFAST,
       title = "早餐",
@@ -59,6 +43,34 @@ object PlanCardCatalog {
       interaction = PlanInteraction.SINGLE_TAG,
       options = mealOptions,
       followUp = cookFollowUp,
+    ),
+    PlanCardDefinition(
+      type = PlanCardType.GO_OUT,
+      title = "出门",
+      interaction = PlanInteraction.MULTI_TAG,
+      options = listOf("早上", "下午", "晚上", "不出门"),
+      exclusiveOption = "不出门",
+      followUp = goOutFollowUp,
+    ),
+    PlanCardDefinition(
+      type = PlanCardType.WORK,
+      title = "学习 / 工作",
+      interaction = PlanInteraction.MULTI_TAG,
+      options = listOf("早上", "下午", "晚上", "休息"),
+      exclusiveOption = "休息",
+      followUp = workFollowUp,
+    ),
+    PlanCardDefinition(
+      type = PlanCardType.FITNESS,
+      title = "健身",
+      interaction = PlanInteraction.MULTI_TAG,
+      options = listOf("早上", "下午", "晚上", "今日练休"),
+      exclusiveOption = "今日练休",
+      followUp = FollowUp(
+        title = "强度",
+        options = listOf("低", "中", "高"),
+        skip = setOf("今日练休"),
+      ),
     ),
     PlanCardDefinition(
       type = PlanCardType.RETURN_HOME,

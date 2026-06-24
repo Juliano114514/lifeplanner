@@ -12,7 +12,7 @@ data class PlanCardDefinition(
 )
 
 /**
- * 条件二级选单：主选命中触发条件后，在同一张卡内追加一步单选。
+ * 条件二级选单：主选命中触发条件后，在同一张卡内追加一步多选。
  * 健身（任意时段 → 强度）与三餐（自己做 → 怎么做）共用此抽象，无需各自的两步分支。
  */
 data class FollowUp(
@@ -20,6 +20,7 @@ data class FollowUp(
   val options: List<String>,
   val triggers: Set<String> = emptySet(), // 空集表示任意主选都触发
   val skip: Set<String> = emptySet(), // 命中则不展示二级
+  val multiSelect: Boolean = true,
 )
 
 /** 给定当前主选项，返回应展示的二级选单；不满足触发条件返回 null。 */

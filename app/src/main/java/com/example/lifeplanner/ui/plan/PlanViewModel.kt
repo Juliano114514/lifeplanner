@@ -59,7 +59,7 @@ class PlanViewModel(
       when (action) {
         is PlanAction.ToggleTag -> editAnswer { PlanFlowReducer.toggleTag(it, action.label) }
         is PlanAction.SelectSingle -> editAnswer { PlanFlowReducer.selectSingle(it, action.label) }
-        is PlanAction.SelectFollowUp -> editAnswer { PlanFlowReducer.selectFollowUp(it, action.label) }
+        is PlanAction.ToggleFollowUp -> editAnswer { PlanFlowReducer.toggleFollowUp(it, action.label) }
         is PlanAction.SetHour -> editAnswer { PlanFlowReducer.setHour(it, action.hour) }
         is PlanAction.SetNote -> editAnswer { PlanFlowReducer.setNote(it, action.text) }
         PlanAction.AddExtraNote -> editAnswer { PlanFlowReducer.addExtraNote(it) }

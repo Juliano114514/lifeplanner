@@ -36,8 +36,14 @@ object PlanFlowReducer {
   fun selectSingle(state: PlanFlowState, label: String): PlanFlowState =
     updateAnswer(state, selectedOptions = listOf(label))
 
-  fun selectFollowUp(state: PlanFlowState, label: String): PlanFlowState =
-    updateAnswer(state, subSelection = label)
+  fun toggleFollowUp(state: PlanFlowState, label: String): PlanFlowState {
+    val mainSelected = state.currentAnswer()?.selectedOptions.orEmpty()
+    val activeOptions = state.currentDefinition.activeFollowUp(mainSelected)?.options.orEmpty()
+    if (label !in activeOptions) return state
+    val selected = state.currentAnswer()?.subSelections.orEmpty().toMutableList()
+    if (!selected.remove(label)) selected.add(label)
+    return updateAnswer(state, subSelections = selected)
+  }
 
   fun setHour(state: PlanFlowState, hour: Int): PlanFlowState =
     updateAnswer(state, timeValue = "%02d:00".format(hour))
@@ -83,7 +89,7 @@ object PlanFlowReducer {
   private fun updateAnswer(
     state: PlanFlowState,
     selectedOptions: List<String> = state.currentAnswer()?.selectedOptions.orEmpty(),
-    subSelection: String? = state.currentAnswer()?.subSelection,
+    subSelections: List<String> = state.currentAnswer()?.subSelections.orEmpty(),
     timeValue: String? = state.currentAnswer()?.timeValue,
     noteText: String? = state.currentAnswer()?.noteText,
     extraNotes: List<String> = state.currentAnswer()?.extraNotes.orEmpty(),
@@ -91,12 +97,12 @@ object PlanFlowReducer {
     val definition = state.currentDefinition
     // 主选变化后，若二级不再适用或选项失效，则清除旧的二级选择，避免脏数据。
     val activeOptions = definition.activeFollowUp(selectedOptions)?.options
-    val resolvedSub = subSelection?.takeIf { activeOptions?.contains(it) == true }
+    val resolvedSub = subSelections.filter { it in activeOptions.orEmpty() }
     val answer = PlanCardAnswer(
       cardType = definition.type,
       cardIndex = state.currentIndex,
       selectedOptions = selectedOptions,
-      subSelection = resolvedSub,
+      subSelections = resolvedSub,
       timeValue = timeValue,
       noteText = noteText,
       extraNotes = extraNotes,

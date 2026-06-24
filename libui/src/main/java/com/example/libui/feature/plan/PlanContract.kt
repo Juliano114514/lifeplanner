@@ -17,7 +17,7 @@ data class PlanUiState(
 sealed interface PlanAction {
   data class ToggleTag(val label: String) : PlanAction
   data class SelectSingle(val label: String) : PlanAction
-  data class SelectFollowUp(val label: String) : PlanAction
+  data class ToggleFollowUp(val label: String) : PlanAction
   data object Next : PlanAction
   data object Previous : PlanAction
   data object Skip : PlanAction

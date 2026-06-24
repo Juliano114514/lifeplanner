@@ -1,13 +1,14 @@
 package com.example.libui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,14 +22,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.libui.R
 import com.example.libui.theme.Dimens
 
 /**
  * 胶囊形选项 chip，替换 Material FilterChip。
- * 选中态：品牌绿浅底 + 绿描边 + 厚度底影 + 前置勾；未选态：中性浅底、无厚度。
- * 仅用轻量的勾入场动画，避免每帧 scale 弹簧造成换卡时的叠帧卡顿。
+ * 未选：surface + outline 描边；选中：品牌绿浅底 + 绿描边 + 厚度底影 + 前置勾。
+ * 对勾仅用 fade，不用横向展开，避免挤压同行选项。内容在格内居中，选中时外框宽度不变。
  */
 @Composable
 fun ChunkyChip(
@@ -36,49 +38,61 @@ fun ChunkyChip(
   selected: Boolean,
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
+  fillCell: Boolean = false,
 ) {
   val shape = RoundedCornerShape(Dimens.radiusChip)
   val scheme = MaterialTheme.colorScheme
 
-  val faceColor = if (selected) scheme.primaryContainer else scheme.surfaceVariant
+  val faceColor = if (selected) scheme.primaryContainer else scheme.surface
   val depthColor = if (selected) colorResource(R.color.depth_primary) else Color.Transparent
   val textColor = if (selected) scheme.primary else scheme.onSurfaceVariant
-  val borderModifier =
-    if (selected) Modifier.border(BorderStroke(2.dp, scheme.primary), shape) else Modifier
+  val borderStroke = if (selected) {
+    BorderStroke(Dimens.chipBorderSelected, scheme.primary)
+  } else {
+    BorderStroke(Dimens.chipBorderUnselected, scheme.outline)
+  }
 
   TactileSurface(
     onClick = onClick,
     color = faceColor,
     depthColor = depthColor,
     shape = shape,
-    depth = Dimens.depthChip,
-    modifier = modifier,
+    depth = if (selected) Dimens.depthChip else 0.dp,
+    modifier = if (fillCell) modifier.fillMaxWidth() else modifier,
   ) {
-    Row(
+    Box(
       modifier = Modifier
-        .then(borderModifier)
+        .then(if (fillCell) Modifier.fillMaxWidth() else Modifier)
+        .border(borderStroke, shape)
         .padding(horizontal = Dimens.space16, vertical = Dimens.space12),
-      verticalAlignment = Alignment.CenterVertically,
+      contentAlignment = Alignment.Center,
     ) {
-      AnimatedVisibility(
-        visible = selected,
-        enter = fadeIn() + expandHorizontally(),
-        exit = fadeOut() + shrinkHorizontally(),
+      Row(
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
       ) {
-        Icon(
-          imageVector = Icons.Rounded.Check,
-          contentDescription = null,
-          tint = scheme.primary,
-          modifier = Modifier
-            .padding(end = Dimens.space4)
-            .size(18.dp),
+        AnimatedVisibility(
+          visible = selected,
+          enter = fadeIn(),
+          exit = fadeOut(),
+        ) {
+          Icon(
+            imageVector = Icons.Rounded.Check,
+            contentDescription = null,
+            tint = scheme.primary,
+            modifier = Modifier
+              .padding(end = Dimens.chipIconGap)
+              .size(Dimens.chipIconSize),
+          )
+        }
+        Text(
+          text = text,
+          style = MaterialTheme.typography.labelLarge,
+          color = textColor,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
         )
       }
-      Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = textColor,
-      )
     }
   }
 }
