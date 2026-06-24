@@ -38,7 +38,7 @@
            ▼               ▼               ▼
     ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
     │    libui    │ │   libroom   │ │ foundation  │
-    │ Compose 组件 │ │  Room 数据层 │ │ 纯 Kotlin   │
+    │  UI 展示层  │ │  Room 数据层 │ │ 纯 Kotlin   │
     └──────┬──────┘ └──────┬──────┘ └─────────────┘
            │               │
            └───────┬───────┘
@@ -52,38 +52,39 @@
 |---|---|---|---|
 | `foundation` | JVM Library | 领域模型、CSV 解析、纯文本导出、时间工具 | — |
 | `libroom` | Android Library | Room Entity / DAO / Database / Repository | `foundation` |
-| `libui` | Android Library | 可复用 Compose 组件（卡片流、进度条、状态组等） | `foundation` |
-| `app` | Android Application | Activity、导航、ViewModel、Koin DI、业务 Screen | `foundation`, `libroom`, `libui` |
+| `libui` | Android Library | 设计主题、通用组件、无状态 Feature UI（`*Content`：仅 `UiState` + 回调，无 ViewModel / Repository） | `foundation` |
+| `app` | Android Application | Activity、导航、Koin DI、ViewModel、薄包装 Screen（`collect` 状态后委托 `*Content`） | `foundation`, `libroom`, `libui` |
 
 版本与第三方依赖统一维护于 `gradle/libs.versions.toml`（Version Catalog）。
+
+**UI 分层约定**：`libui` 提供 `XxxContent(state, onAction)`；`app` 的 `XxxScreen` 负责注入 ViewModel、收集 `StateFlow`、处理导航与一次性 Effect。ViewModel 与 `NavGraph` 不进入 `libui`，以保持 `libui → foundation` 的依赖方向（不依赖 `libroom`）。
 
 ### 3.2 目录结构
 
 ```
 lifeplanner/
-├── app/                                        // 应用壳层
-│   └── src/main/java/com/example/lifeplanner/
-│       ├── App.kt                              // Application，Koin 初始化
-│       ├── MainActivity.kt                     // 单 Activity，Compose 入口
-│       ├── di/
-│       │   └── AppModule.kt                    // Repository / ViewModel / DAO 注册
-│       ├── ui/
-│       │   ├── navigation/
-│       │   │   └── NavGraph.kt                 // 导航图
-│       │   ├── theme/                          // Material3 主题
-│       │   ├── home/
-│       │   │   ├── HomeScreen.kt               // 首页（两大入口）
-│       │   │   └── HomeViewModel.kt
-│       │   ├── plan/
-│       │   │   ├── PlanScreen.kt               // 规划卡片流
-│       │   │   ├── PlanResultScreen.kt         // 规划结果 & 导出
-│       │   │   └── PlanViewModel.kt
-│       │   └── inventory/
-│       │       ├── CategoryListScreen.kt       // 大类列表
-│       │       ├── InventoryScreen.kt          // 盘点卡片流
-│       │       ├── InventoryResultScreen.kt    // 采购清单 & 导出
-│       │       └── InventoryViewModel.kt
-│       └── src/test/                               // 单元测试
+├── app/                                        // 应用壳层（编排）
+│   ├── src/main/java/com/example/lifeplanner/
+│   │   ├── App.kt                              // Application，Koin 初始化
+│   │   ├── MainActivity.kt                     // 单 Activity，Compose 入口
+│   │   ├── di/
+│   │   │   └── AppModule.kt                    // Repository / ViewModel / DAO 注册
+│   │   └── ui/
+│   │       ├── navigation/
+│   │       │   └── NavGraph.kt                 // 导航图（路由注册与 Screen 组装）
+│   │       ├── home/
+│   │       │   ├── HomeScreen.kt               // 薄包装：ViewModel → HomeContent
+│   │       │   └── HomeViewModel.kt
+│   │       ├── plan/
+│   │       │   ├── PlanScreen.kt               // 薄包装：ViewModel → PlanContent
+│   │       │   ├── PlanResultScreen.kt         // 薄包装：ViewModel → PlanResultContent
+│   │       │   └── PlanViewModel.kt
+│   │       └── inventory/
+│   │           ├── CategoryListScreen.kt       // 薄包装 → CategoryListContent
+│   │           ├── InventoryScreen.kt          // 薄包装 → InventoryContent
+│   │           ├── InventoryResultScreen.kt    // 薄包装 → InventoryResultContent
+│   │           └── InventoryViewModel.kt
+│   └── src/test/                               // 单元测试
 │
 ├── foundation/                                 // 纯 Kotlin JVM 模块
 │   └── src/main/java/com/example/foundation/
@@ -112,13 +113,27 @@ lifeplanner/
 │           ├── PlanRepository.kt               // 规划数据仓库
 │           └── InventoryRepository.kt          // 库存数据仓库
 │
-├── libui/                                      // 可复用 Compose 组件库
+├── libui/                                      // Compose 展示层（无业务编排）
 │   └── src/main/java/com/example/libui/
-│       └── components/
-│           ├── CardStack.kt                    // 卡片堆叠容器
-│           ├── ProgressBar.kt                  // 进度指示条
-│           ├── StatusSegmentedButton.kt        // 缺/较少/足够/过多 状态组
-│           └── QuantitySlider.kt               // 数量滑动条（带吸附）
+│       ├── theme/                              // Material3 主题
+│       │   ├── Color.kt
+│       │   ├── Type.kt
+│       │   └── Theme.kt
+│       ├── components/                         // 跨 Feature 复用组件
+│       │   ├── CardStack.kt                    // 卡片堆叠容器
+│       │   ├── ProgressBar.kt                  // 进度指示条
+│       │   ├── StatusSegmentedButton.kt        // 缺/较少/足够/过多 状态组
+│       │   └── QuantitySlider.kt               // 数量滑动条（带吸附）
+│       └── feature/                            // 无状态 Feature UI
+│           ├── home/
+│           │   └── HomeContent.kt              // 首页（两大入口）
+│           ├── plan/
+│           │   ├── PlanContent.kt              // 规划卡片流
+│           │   └── PlanResultContent.kt        // 规划结果 & 导出
+│           └── inventory/
+│               ├── CategoryListContent.kt      // 大类列表
+│               ├── InventoryContent.kt         // 盘点卡片流
+│               └── InventoryResultContent.kt   // 采购清单 & 导出
 │
 ├── gradle/
 │   └── libs.versions.toml                      // 版本号 & 依赖坐标（Version Catalog）
