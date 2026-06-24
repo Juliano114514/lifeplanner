@@ -28,6 +28,11 @@
     <color name="status_warning">#E6FF9900</color>
     <color name="status_error">#E6FF3333</color>
 
+    <!-- 3D 厚按钮底部硬阴影：比主体深一阶的同色系底块，营造可按压厚度 -->
+    <color name="depth_primary">#FF00A848</color>
+    <color name="depth_surface">#1F000000</color>
+    <color name="depth_card">#14000000</color>
+
     <!-- 基础色 -->
     <color name="black">#FF000000</color>
     <color name="black_90">#CC000000</color>

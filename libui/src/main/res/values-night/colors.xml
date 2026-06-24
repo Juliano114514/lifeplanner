@@ -25,4 +25,9 @@
     <color name="status_warning">#E6FFB74D</color>
     <color name="status_error">#E6FF5252</color>
 
+    <!-- 3D 厚按钮底部硬阴影：深色下加深，避免与表面糊成一块 -->
+    <color name="depth_primary">#FF007A35</color>
+    <color name="depth_surface">#33000000</color>
+    <color name="depth_card">#40000000</color>
+
 </resources>
