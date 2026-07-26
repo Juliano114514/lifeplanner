@@ -210,13 +210,13 @@ private fun TodoContent(
     verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
   ) {
     todoSection("置顶 / 临近 DDL", overview.urgent, true, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
+    todoSection("今日未完成", overview.todayPending, false, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
     scheduleSection(
       state.pendingScheduleBlocks,
       onOpenSchedule,
       onEditSchedule,
       onToggleScheduleComplete,
     )
-    todoSection("今日未完成", overview.todayPending, false, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
     completedSection(
       state.completedItems,
       onEditTask,
