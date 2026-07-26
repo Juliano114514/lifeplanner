@@ -88,12 +88,15 @@ internal fun ScheduleBlockEntity.toDomain(
     source = ScheduleSource.valueOf(source),
     isUserModified = isUserModified,
     isArchived = isArchived,
-    quickPlanEntryRef = quickPlanCardType?.let { cardType ->
-      quickPlanEntryKey?.let { entryKey ->
-        QuickPlanEntryRef(QuickPlanCardType.valueOf(cardType), entryKey)
-      }
-    },
+    quickPlanEntryRef = quickPlanEntryRef(),
   )
+
+internal fun ScheduleBlockEntity.quickPlanEntryRef(): QuickPlanEntryRef? =
+  quickPlanCardType?.let { cardType ->
+    quickPlanEntryKey?.let { entryKey ->
+      QuickPlanEntryRef(QuickPlanCardType.valueOf(cardType), entryKey)
+    }
+  }
 
 internal fun QuickPlanAnswerEntity.toDomain(
   periodEntries: List<QuickPlanPeriodEntryEntity>,

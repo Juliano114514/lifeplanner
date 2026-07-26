@@ -21,6 +21,7 @@ import com.example.lifeplanner.core.domain.model.TaskOccurrence
 import com.example.lifeplanner.core.domain.model.TodoItem
 import com.example.lifeplanner.core.domain.model.TodoOverview
 import com.example.lifeplanner.core.domain.model.TrackingMode
+import com.example.lifeplanner.core.domain.quickplan.QuickPlanCatalog
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -188,7 +189,7 @@ object QuickPlanGenerator {
     val note = answer.subSelections.joinToString("、")
     answer.selectedOptions.forEach { label ->
       windows[label]?.let { range ->
-        val period = fitnessPeriods[label] ?: return@let
+        val period = QuickPlanCatalog.periodForLabel(label) ?: return@let
         add(
           generated(
             draft.date,
@@ -210,7 +211,7 @@ object QuickPlanGenerator {
   ): List<QuickPlanPeriodEntry> {
     if (periodEntries.isNotEmpty()) return periodEntries
     val legacyPeriods = selectedOptions.mapNotNull { label ->
-      legacyPeriodLabels[label]?.let { period ->
+      QuickPlanCatalog.periodForLabel(label)?.let { period ->
         QuickPlanPeriodEntry(
           period = period,
           tag = if (type == QuickPlanCardType.GO_OUT) subSelections.firstOrNull().orEmpty() else "",
@@ -264,11 +265,6 @@ object QuickPlanGenerator {
 
   const val SINGLE_SLOT = "single"
 
-  private val legacyPeriodLabels = mapOf(
-    "早上" to DayPeriod.MORNING,
-    "下午" to DayPeriod.AFTERNOON,
-    "晚上" to DayPeriod.EVENING,
-  )
   private val workWindows = mapOf(
     DayPeriod.MORNING to (9 * 60 until 12 * 60),
     DayPeriod.AFTERNOON to (14 * 60 until 17 * 60 + 30),
@@ -283,11 +279,6 @@ object QuickPlanGenerator {
     "早上" to (7 * 60 until 8 * 60),
     "下午" to (17 * 60 until 18 * 60),
     "晚上" to (20 * 60 until 21 * 60),
-  )
-  private val fitnessPeriods = mapOf(
-    "早上" to DayPeriod.MORNING,
-    "下午" to DayPeriod.AFTERNOON,
-    "晚上" to DayPeriod.EVENING,
   )
 }
 
@@ -408,14 +399,8 @@ object QuickPlanReconciler {
       if (existing?.selectedOptions?.singleOrNull() != "今日练休") answers.remove(type)
       return
     }
-    val selected = DayPeriod.entries.filter(periods::contains).map { it.fitnessLabel() }
+    val selected = DayPeriod.entries.filter(periods::contains).map(QuickPlanCatalog::periodLabel)
     answers[type] = (existing ?: QuickPlanAnswer(type)).copy(selectedOptions = selected)
-  }
-
-  private fun DayPeriod.fitnessLabel(): String = when (this) {
-    DayPeriod.MORNING -> "早上"
-    DayPeriod.AFTERNOON -> "下午"
-    DayPeriod.EVENING -> "晚上"
   }
 }
 

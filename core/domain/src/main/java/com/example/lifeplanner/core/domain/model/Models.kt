@@ -155,8 +155,10 @@ data class QuickPlanCardDefinition(
 ) {
   fun activeFollowUp(selected: List<String>): QuickPlanFollowUp? {
     val config = followUp ?: return null
-    if (selected.any(config.skip::contains)) return null
-    return config.takeIf { config.triggers.isEmpty() || selected.any(config.triggers::contains) }
+    return config.takeIf {
+      selected.none(config.skip::contains) &&
+        (config.triggers.isEmpty() || selected.any(config.triggers::contains))
+    }
   }
 }
 

@@ -1,5 +1,6 @@
 package com.example.lifeplanner.core.domain.quickplan
 
+import com.example.lifeplanner.core.domain.model.DayPeriod
 import com.example.lifeplanner.core.domain.model.QuickPlanCardDefinition
 import com.example.lifeplanner.core.domain.model.QuickPlanCardType
 import com.example.lifeplanner.core.domain.model.QuickPlanFollowUp
@@ -13,6 +14,13 @@ object QuickPlanCatalog {
     options = listOf("有菜了", "要去买菜", "要外卖点菜"),
     triggers = setOf("自己做"),
   )
+  private val periodLabels = mapOf(
+    DayPeriod.MORNING to "早上",
+    DayPeriod.AFTERNOON to "下午",
+    DayPeriod.EVENING to "晚上",
+  )
+  private val periodsByLabel =
+    periodLabels.entries.associate { (period, label) -> label to period }
 
   val cards: List<QuickPlanCardDefinition> = listOf(
     QuickPlanCardDefinition(
@@ -32,27 +40,9 @@ object QuickPlanCatalog {
         activityOptions = listOf("出去玩", "出去办事", "出去团建"),
       ),
     ),
-    QuickPlanCardDefinition(
-      QuickPlanCardType.BREAKFAST,
-      "早餐",
-      QuickPlanInteraction.SINGLE_TAG,
-      mealOptions,
-      followUp = mealFollowUp,
-    ),
-    QuickPlanCardDefinition(
-      QuickPlanCardType.LUNCH,
-      "午餐",
-      QuickPlanInteraction.SINGLE_TAG,
-      mealOptions,
-      followUp = mealFollowUp,
-    ),
-    QuickPlanCardDefinition(
-      QuickPlanCardType.DINNER,
-      "晚餐",
-      QuickPlanInteraction.SINGLE_TAG,
-      mealOptions,
-      followUp = mealFollowUp,
-    ),
+    mealCard(QuickPlanCardType.BREAKFAST, "早餐"),
+    mealCard(QuickPlanCardType.LUNCH, "午餐"),
+    mealCard(QuickPlanCardType.DINNER, "晚餐"),
     QuickPlanCardDefinition(
       QuickPlanCardType.RETURN_HOME,
       "晚上回家",
@@ -76,4 +66,16 @@ object QuickPlanCatalog {
       QuickPlanInteraction.TODO_CREATE,
     ),
   )
+
+  private fun mealCard(type: QuickPlanCardType, title: String) = QuickPlanCardDefinition(
+    type = type,
+    title = title,
+    interaction = QuickPlanInteraction.SINGLE_TAG,
+    options = mealOptions,
+    followUp = mealFollowUp,
+  )
+
+  fun periodLabel(period: DayPeriod): String = periodLabels.getValue(period)
+
+  fun periodForLabel(label: String): DayPeriod? = periodsByLabel[label]
 }

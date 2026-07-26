@@ -15,15 +15,14 @@ import com.example.lifeplanner.core.database.entity.StockItemEntity
 import com.example.lifeplanner.core.database.entity.StockSnapshotEntity
 import com.example.lifeplanner.core.database.entity.TaskEntity
 import com.example.lifeplanner.core.database.entity.TaskOccurrenceEntity
+import com.example.lifeplanner.core.database.mapper.quickPlanEntryRef
 import com.example.lifeplanner.core.database.mapper.toDomain
 import com.example.lifeplanner.core.database.mapper.toEntity
 import com.example.lifeplanner.core.database.mapper.toEpochMillis
 import com.example.lifeplanner.core.domain.model.DaySchedule
 import com.example.lifeplanner.core.domain.model.FoodDetails
 import com.example.lifeplanner.core.domain.model.OccurrenceStatus
-import com.example.lifeplanner.core.domain.model.QuickPlanCardType
 import com.example.lifeplanner.core.domain.model.QuickPlanDraft
-import com.example.lifeplanner.core.domain.model.QuickPlanEntryRef
 import com.example.lifeplanner.core.domain.model.ScheduleBlock
 import com.example.lifeplanner.core.domain.model.ScheduleBlockDraft
 import com.example.lifeplanner.core.domain.model.ScheduleSource
@@ -401,16 +400,6 @@ class ScheduleRepositoryImpl(
       quickPlanEntryKey = ref.slotKey,
     )
   }
-
-  private fun ScheduleBlockEntity.quickPlanEntryRef(): QuickPlanEntryRef? =
-    quickPlanCardType?.let { cardType ->
-      quickPlanEntryKey?.let { entryKey ->
-        QuickPlanEntryRef(
-          cardType = QuickPlanCardType.valueOf(cardType),
-          slotKey = entryKey,
-        )
-      }
-    }
 
   private fun ScheduleBlock.hasSameVisibleFields(entity: ScheduleBlockEntity): Boolean =
     startMinute == entity.startMinute &&
