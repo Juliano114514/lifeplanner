@@ -12,7 +12,6 @@ android {
   defaultConfig {
     minSdk = 28
     consumerProguardFiles("consumer-rules.pro")
-    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   compileOptions {
@@ -24,20 +23,12 @@ android {
     arg("room.schemaLocation", "$projectDir/schemas")
   }
 
-  sourceSets {
-    getByName("androidTest").assets.directories.add("$projectDir/schemas")
-  }
 }
 
 dependencies {
   implementation(project(":core:domain"))
-  implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.room.ktx)
   implementation(libs.kotlinx.coroutines.core)
-  implementation(libs.kotlinx.coroutines.android)
   ksp(libs.androidx.room.compiler)
-  testImplementation(libs.junit)
-  androidTestImplementation(libs.androidx.junit)
-  androidTestImplementation(libs.androidx.room.testing)
 }

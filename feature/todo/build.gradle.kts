@@ -6,10 +6,7 @@ plugins {
 android {
   namespace = "com.example.lifeplanner.feature.todo"
   compileSdk { version = release(37) }
-  defaultConfig {
-    minSdk = 28
-    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-  }
+  defaultConfig { minSdk = 28 }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
@@ -29,10 +26,4 @@ dependencies {
   implementation(libs.androidx.lifecycle.viewmodel.compose)
   implementation(libs.koin.androidx.compose)
   implementation(libs.kotlinx.coroutines.android)
-  testImplementation(libs.junit)
-  testImplementation(libs.kotlinx.coroutines.test)
-  androidTestImplementation(platform(libs.androidx.compose.bom))
-  androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-  androidTestImplementation(libs.androidx.junit)
-  debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
