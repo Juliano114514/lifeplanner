@@ -66,9 +66,13 @@ internal fun TaskOccurrenceEntity.toDomain(): TaskOccurrence = TaskOccurrence(
 
 internal fun ScheduleBlockRow.toDomain(): ScheduleBlock = block.toDomain(
   taskStatus?.let(OccurrenceStatus::valueOf),
+  taskCompletedAt,
 )
 
-internal fun ScheduleBlockEntity.toDomain(taskStatus: OccurrenceStatus? = null): ScheduleBlock =
+internal fun ScheduleBlockEntity.toDomain(
+  taskStatus: OccurrenceStatus? = null,
+  taskCompletedAt: Long? = null,
+): ScheduleBlock =
   ScheduleBlock(
     id = id,
     date = LocalDate.parse(date),
@@ -77,7 +81,10 @@ internal fun ScheduleBlockEntity.toDomain(taskStatus: OccurrenceStatus? = null):
     title = title,
     note = note,
     taskOccurrenceId = taskOccurrenceId,
+    scheduleStatus = OccurrenceStatus.valueOf(status),
+    scheduleCompletedAt = completedAt,
     taskStatus = taskStatus,
+    taskCompletedAt = taskCompletedAt,
     source = ScheduleSource.valueOf(source),
     isUserModified = isUserModified,
     isArchived = isArchived,

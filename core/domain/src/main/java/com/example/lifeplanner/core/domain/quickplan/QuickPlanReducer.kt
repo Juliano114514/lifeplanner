@@ -49,9 +49,6 @@ object QuickPlanReducer {
   fun setHour(draft: QuickPlanDraft, hour: Int): QuickPlanDraft =
     putAnswer(draft, answerFor(draft, currentDefinition(draft).type).copy(hour = hour.coerceIn(0, 23)))
 
-  fun setNote(draft: QuickPlanDraft, note: String): QuickPlanDraft =
-    putAnswer(draft, answerFor(draft, currentDefinition(draft).type).copy(note = note))
-
   fun setPeriodIncluded(
     draft: QuickPlanDraft,
     period: DayPeriod,

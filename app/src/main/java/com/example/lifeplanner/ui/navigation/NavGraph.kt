@@ -36,7 +36,6 @@ import com.example.lifeplanner.feature.inventory.ShoppingListRoute as ShoppingLi
 import com.example.lifeplanner.feature.inventory.StockEditorRoute as StockEditorScreen
 import com.example.lifeplanner.feature.schedule.QuickPlanRoute as QuickPlanScreen
 import com.example.lifeplanner.feature.schedule.ScheduleRoute as ScheduleScreen
-import com.example.lifeplanner.feature.todo.TaskEditorRoute as TaskEditorScreen
 import com.example.lifeplanner.feature.todo.TodoRoute as TodoScreen
 import java.time.LocalDate
 
@@ -150,8 +149,6 @@ fun LifePlannerApp(
     ) {
       composable<TodoRoute> {
         TodoScreen(
-          onAddTask = { navController.navigate(TaskEditorRoute()) },
-          onEditTask = { navController.navigate(TaskEditorRoute(it)) },
           onScheduleTask = {
             navController.navigateTopLevel(
               ScheduleRoute(
@@ -185,12 +182,6 @@ fun LifePlannerApp(
           onAddItem = { navController.navigate(StockEditorRoute(kind = StockKind.HOUSEHOLD.name)) },
           onEditItem = { navController.navigate(StockEditorRoute(it, StockKind.HOUSEHOLD.name)) },
           onOpenShopping = { navController.navigate(ShoppingListRoute) },
-        )
-      }
-      composable<TaskEditorRoute> { entry ->
-        TaskEditorScreen(
-          taskId = entry.toRoute<TaskEditorRoute>().taskId,
-          onDone = navController::popBackStack,
         )
       }
       composable<QuickPlanRoute> { entry ->

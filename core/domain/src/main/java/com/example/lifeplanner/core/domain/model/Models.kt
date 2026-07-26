@@ -24,6 +24,15 @@ data class Task(
 
 enum class OccurrenceStatus { PENDING, COMPLETED, SKIPPED }
 
+abstract class DailyPlanItem {
+  abstract val id: Long
+  abstract val title: String
+  abstract val note: String
+  abstract val plannedDate: LocalDate
+  abstract val completionStatus: OccurrenceStatus
+  abstract val completedAt: Long?
+}
+
 data class TaskOccurrence(
   val id: Long = 0,
   val taskId: Long,
@@ -36,7 +45,20 @@ data class TaskOccurrence(
 data class TodoItem(
   val task: Task,
   val occurrence: TaskOccurrence?,
-)
+) : DailyPlanItem() {
+  override val id: Long
+    get() = occurrence?.id ?: task.id
+  override val title: String
+    get() = task.title
+  override val note: String
+    get() = task.note
+  override val plannedDate: LocalDate
+    get() = occurrence?.plannedDate ?: task.recurrenceStart
+  override val completionStatus: OccurrenceStatus
+    get() = occurrence?.status ?: OccurrenceStatus.PENDING
+  override val completedAt: Long?
+    get() = occurrence?.completedAt
+}
 
 data class TodoOverview(
   val urgent: List<TodoItem> = emptyList(),
@@ -53,19 +75,29 @@ data class QuickPlanEntryRef(
 )
 
 data class ScheduleBlock(
-  val id: Long = 0,
+  override val id: Long = 0,
   val date: LocalDate,
   val startMinute: Int,
   val endMinute: Int,
-  val title: String,
-  val note: String = "",
+  override val title: String,
+  override val note: String = "",
   val taskOccurrenceId: Long? = null,
+  val scheduleStatus: OccurrenceStatus = OccurrenceStatus.PENDING,
+  val scheduleCompletedAt: Long? = null,
   val taskStatus: OccurrenceStatus? = null,
+  val taskCompletedAt: Long? = null,
   val source: ScheduleSource = ScheduleSource.MANUAL,
   val isUserModified: Boolean = false,
   val isArchived: Boolean = false,
   val quickPlanEntryRef: QuickPlanEntryRef? = null,
-)
+) : DailyPlanItem() {
+  override val plannedDate: LocalDate
+    get() = date
+  override val completionStatus: OccurrenceStatus
+    get() = taskStatus ?: scheduleStatus
+  override val completedAt: Long?
+    get() = taskCompletedAt ?: scheduleCompletedAt
+}
 
 data class DaySchedule(
   val date: LocalDate,
@@ -102,7 +134,7 @@ data class QuickPlanPeriodConfig(
   val locationOptions: List<String> = emptyList(),
 )
 
-enum class QuickPlanInteraction { MULTI_TAG, SINGLE_TAG, PERIOD_PLAN, HOUR_TIME, NOTE }
+enum class QuickPlanInteraction { MULTI_TAG, SINGLE_TAG, PERIOD_PLAN, HOUR_TIME, TODO_CREATE }
 
 data class QuickPlanFollowUp(
   val title: String,

@@ -4,8 +4,8 @@ LifePlanner 是一款离线优先的 Android 个人生活管理应用，用统�
 
 ## 功能
 
-- **任务**：任务 CRUD、置顶、DDL、重复规则、完成/跳过、归档和今日日程同步展示。
-- **日程**：月历、24 小时时间轴、时间冲突提示，以及按早午晚细化事项与地点的八步快速安排。
+- **任务**：Dialog 新增、长按修改、置顶、DDL、重复规则、完成/跳过、归档和今日日程同步展示。
+- **日程**：月历、24 小时时间轴、完成标记、时间冲突提示，以及按早午晚细化事项与地点的八步快速安排；向导末步可直接创建当日待办。
 - **菜品**：食材与熟食余量、保质期、存放位置、临期提示和快速安排中的可用菜品概览。
 - **库存**：数量、百分比、状态三种记录方式和低库存提醒。
 - **采购**：自动汇总低库存项目，也支持手动添加与购入量回写。
@@ -98,24 +98,6 @@ Feature 之间不直接依赖；Feature 不访问 DAO 或 Room Entity；`libui` 
 - `AppTopBar` / `AppFab`：统一页面导航与新增入口。
 - `AppLoadingState` / `AppEmptyState` / `AppErrorState`：统一反馈状态。
 - `AppStatusBadge` / `AppSectionHeader`：统一状态与信息层级。
-
-## 运行与验证
-
-项目要求 JDK 11，并通过 Version Catalog 管理依赖。
-
-默认只运行 Android 静态检查：
-
-```powershell
-.\gradlew.bat lintDebug
-```
-
-仅在明确需要构建 APK 时运行：
-
-```powershell
-.\gradlew.bat :app:assembleDebug
-```
-
-主要构建产物位于 `app/build/outputs/apk/debug/`。
 
 ## 开发约束
 

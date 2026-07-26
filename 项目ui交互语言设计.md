@@ -275,4 +275,3 @@ libui/
 - [ ] 顶部栏、FAB、空/错/加载状态复用 `libui`。
 - [ ] Feature 没有依赖其他 Feature。
 - [ ] Light/Dark Theme 都能辨认文字与状态。
-- [ ] 默认 Android lint 静态检查通过；单元测试与 assemble 仅在明确要求时执行。

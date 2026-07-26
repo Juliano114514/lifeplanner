@@ -11,6 +11,7 @@ import com.example.lifeplanner.core.domain.model.ScheduleBlock
 import com.example.lifeplanner.core.domain.model.ScheduleBlockDraft
 import com.example.lifeplanner.core.domain.model.StockItemDetails
 import com.example.lifeplanner.core.domain.model.StockKind
+import com.example.lifeplanner.core.domain.model.TaskDraft
 import com.example.lifeplanner.core.domain.model.TodoItem
 import com.example.lifeplanner.core.domain.quickplan.QuickPlanCatalog
 import com.example.lifeplanner.core.domain.quickplan.QuickPlanReducer
@@ -120,14 +121,13 @@ class ScheduleViewModel(
     viewModelScope.launch { scheduleRepository.archiveBlock(id) }
   }
 
-  fun completeTask(block: ScheduleBlock) {
-    val occurrenceId = block.taskOccurrenceId ?: return
-    val next = if (block.taskStatus == OccurrenceStatus.COMPLETED) {
+  fun toggleCompleted(block: ScheduleBlock) {
+    val next = if (block.completionStatus == OccurrenceStatus.COMPLETED) {
       OccurrenceStatus.PENDING
     } else {
       OccurrenceStatus.COMPLETED
     }
-    viewModelScope.launch { taskRepository.setOccurrenceStatus(occurrenceId, next) }
+    viewModelScope.launch { scheduleRepository.setBlockStatus(block.id, next) }
   }
 }
 
@@ -135,6 +135,8 @@ data class QuickPlanUiState(
   val isLoading: Boolean = true,
   val draft: QuickPlanDraft = QuickPlanReducer.newDraft(LocalDate.now()),
   val availableFoods: List<StockItemDetails> = emptyList(),
+  val dailyTodos: List<TodoItem> = emptyList(),
+  val isCreatingTodo: Boolean = false,
   val errorMessage: String? = null,
 ) {
   val currentCard: QuickPlanCardDefinition
@@ -150,6 +152,7 @@ sealed interface QuickPlanEffect {
 class QuickPlanViewModel(
   private val repository: ScheduleRepository,
   private val stockRepository: StockRepository,
+  private val taskRepository: TaskRepository,
 ) : ViewModel() {
   private val _state = MutableStateFlow(QuickPlanUiState())
   val state: StateFlow<QuickPlanUiState> = _state.asStateFlow()
@@ -157,7 +160,9 @@ class QuickPlanViewModel(
   val effect: SharedFlow<QuickPlanEffect> = _effect.asSharedFlow()
   private var baselineDraft: QuickPlanDraft? = null
   private var loadJob: Job? = null
+  private var todoJob: Job? = null
   private var latestFoods: List<StockItemDetails> = emptyList()
+  private var latestDailyTodos: List<TodoItem> = emptyList()
 
   init {
     viewModelScope.launch {
@@ -177,8 +182,23 @@ class QuickPlanViewModel(
   fun load(epochDay: Long) {
     val date = LocalDate.ofEpochDay(epochDay)
     loadJob?.cancel()
+    todoJob?.cancel()
     baselineDraft = null
+    latestDailyTodos = emptyList()
     _state.update { it.copy(isLoading = true, errorMessage = null) }
+    todoJob = viewModelScope.launch {
+      taskRepository.observeSchedulable(date)
+        .catch { error -> _state.update { it.copy(errorMessage = error.message) } }
+        .collect { items ->
+          latestDailyTodos = items.filter { item ->
+            item.task.recurrence == null &&
+              item.task.recurrenceStart == date &&
+              item.task.dueAt == null &&
+              item.task.note.isBlank()
+          }
+          _state.update { it.copy(dailyTodos = latestDailyTodos) }
+        }
+    }
     loadJob = viewModelScope.launch {
       try {
         val restored = repository.startQuickPlan(date)
@@ -188,6 +208,7 @@ class QuickPlanViewModel(
           isLoading = false,
           draft = draft,
           availableFoods = StockRules.availableFoods(latestFoods, date),
+          dailyTodos = latestDailyTodos,
         )
       } catch (error: CancellationException) {
         throw error
@@ -201,7 +222,6 @@ class QuickPlanViewModel(
   fun selectSingle(label: String) = reduce { QuickPlanReducer.selectSingle(it, label) }
   fun toggleFollowUp(label: String) = reduce { QuickPlanReducer.toggleFollowUp(it, label) }
   fun setHour(hour: Int) = reduce { QuickPlanReducer.setHour(it, hour) }
-  fun setNote(note: String) = reduce { QuickPlanReducer.setNote(it, note) }
   fun setPeriodIncluded(period: DayPeriod, isIncluded: Boolean) =
     reduce { QuickPlanReducer.setPeriodIncluded(it, period, isIncluded) }
   fun setPeriodTag(period: DayPeriod, tag: String) =
@@ -214,6 +234,35 @@ class QuickPlanViewModel(
   fun previous() = reduce { QuickPlanReducer.previous(it) }
   fun skip() = reduce { QuickPlanReducer.skip(it) }
   fun next() = reduce { QuickPlanReducer.next(it) }
+
+  fun createTodo(title: String) {
+    val normalizedTitle = title.trim()
+    if (normalizedTitle.isEmpty()) {
+      _state.update { it.copy(errorMessage = "请输入待办标题") }
+      return
+    }
+    val date = _state.value.draft.date
+    viewModelScope.launch {
+      _state.update { it.copy(isCreatingTodo = true, errorMessage = null) }
+      runCatching {
+        taskRepository.saveTask(
+          TaskDraft(
+            title = normalizedTitle,
+            recurrenceStart = date,
+          ),
+        )
+      }.onSuccess {
+        _state.update { it.copy(isCreatingTodo = false) }
+      }.onFailure { error ->
+        _state.update {
+          it.copy(
+            isCreatingTodo = false,
+            errorMessage = error.message,
+          )
+        }
+      }
+    }
+  }
 
   fun complete() {
     val baseline = baselineDraft ?: return

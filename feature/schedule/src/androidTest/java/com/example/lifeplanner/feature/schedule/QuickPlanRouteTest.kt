@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performClick
 import com.example.lifeplanner.core.domain.model.DaySchedule
 import com.example.lifeplanner.core.domain.model.FoodDetails
 import com.example.lifeplanner.core.domain.model.FoodKind
+import com.example.lifeplanner.core.domain.model.OccurrenceStatus
 import com.example.lifeplanner.core.domain.model.QuickPlanAnswer
 import com.example.lifeplanner.core.domain.model.QuickPlanCardType
 import com.example.lifeplanner.core.domain.model.QuickPlanDraft
@@ -19,10 +20,16 @@ import com.example.lifeplanner.core.domain.model.StockItemDraft
 import com.example.lifeplanner.core.domain.model.StockKind
 import com.example.lifeplanner.core.domain.model.StockLevel
 import com.example.lifeplanner.core.domain.model.StorageLocation
+import com.example.lifeplanner.core.domain.model.Task
+import com.example.lifeplanner.core.domain.model.TaskDraft
+import com.example.lifeplanner.core.domain.model.TaskOccurrence
+import com.example.lifeplanner.core.domain.model.TodoItem
+import com.example.lifeplanner.core.domain.model.TodoOverview
 import com.example.lifeplanner.core.domain.model.TrackingMode
 import com.example.lifeplanner.core.domain.quickplan.QuickPlanCatalog
 import com.example.lifeplanner.core.domain.repository.ScheduleRepository
 import com.example.lifeplanner.core.domain.repository.StockRepository
+import com.example.lifeplanner.core.domain.repository.TaskRepository
 import com.example.libui.theme.LifePlannerTheme
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -40,6 +47,7 @@ class QuickPlanRouteTest {
     val viewModel = QuickPlanViewModel(
       FakeScheduleRepository(QuickPlanDraft(date)),
       FakeStockRepository(emptyList()),
+      FakeTaskRepository(),
     )
 
     composeRule.setContent {
@@ -79,6 +87,7 @@ class QuickPlanRouteTest {
     val viewModel = QuickPlanViewModel(
       FakeScheduleRepository(draft),
       FakeStockRepository(listOf(food(date))),
+      FakeTaskRepository(),
     )
 
     composeRule.setContent {
@@ -136,9 +145,48 @@ private class FakeScheduleRepository(
     startMinute: Int,
     endMinute: Int,
   ): Long = 0
+  override suspend fun setBlockStatus(id: Long, status: OccurrenceStatus) = Unit
   override suspend fun archiveBlock(id: Long) = Unit
   override suspend fun startQuickPlan(date: LocalDate): QuickPlanDraft = draft
   override suspend fun applyQuickPlan(draft: QuickPlanDraft, baseline: QuickPlanDraft) = Unit
+}
+
+private class FakeTaskRepository : TaskRepository {
+  private val values = MutableStateFlow<List<TodoItem>>(emptyList())
+  private var nextId = 1L
+
+  override fun observeTodo(date: LocalDate): Flow<TodoOverview> =
+    MutableStateFlow(TodoOverview())
+  override fun observeSchedulable(date: LocalDate): Flow<List<TodoItem>> = values
+  override suspend fun getTask(id: Long): Task? = values.value
+    .firstOrNull { it.task.id == id }
+    ?.task
+  override suspend fun saveTask(draft: TaskDraft): Long {
+    val id = nextId++
+    val task = Task(
+      id = id,
+      title = draft.title,
+      recurrenceStart = draft.recurrenceStart,
+      createdAt = id,
+      updatedAt = id,
+    )
+    values.value += TodoItem(
+      task = task,
+      occurrence = TaskOccurrence(
+        id = id,
+        taskId = id,
+        plannedDate = draft.recurrenceStart,
+      ),
+    )
+    return id
+  }
+  override suspend fun setPinned(taskId: Long, pinned: Boolean) = Unit
+  override suspend fun setOccurrenceStatus(
+    occurrenceId: Long,
+    status: OccurrenceStatus,
+  ) = Unit
+  override suspend fun ensureOccurrences(start: LocalDate, endInclusive: LocalDate) = Unit
+  override suspend fun archiveTask(taskId: Long) = Unit
 }
 
 private class FakeStockRepository(

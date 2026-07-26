@@ -18,9 +18,6 @@ data object DishesRoute
 data object InventoryRoute
 
 @Serializable
-data class TaskEditorRoute(val taskId: Long? = null)
-
-@Serializable
 data class QuickPlanRoute(val epochDay: Long)
 
 @Serializable

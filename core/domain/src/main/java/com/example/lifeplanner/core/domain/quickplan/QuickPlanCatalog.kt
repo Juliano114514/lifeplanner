@@ -73,7 +73,7 @@ object QuickPlanCatalog {
     QuickPlanCardDefinition(
       QuickPlanCardType.OTHER,
       "其他",
-      QuickPlanInteraction.NOTE,
+      QuickPlanInteraction.TODO_CREATE,
     ),
   )
 }

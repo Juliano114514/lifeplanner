@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.lifeplanner.core.domain.model.DayPeriod
 import com.example.lifeplanner.core.domain.model.FoodKind
@@ -133,7 +137,7 @@ fun ScheduleRoute(
               initialEndMinute = (hour + 1) * 60,
             )
           },
-          onComplete = viewModel::completeTask,
+          onComplete = viewModel::toggleCompleted,
           modifier = Modifier.weight(1f),
         )
       }
@@ -220,29 +224,68 @@ private fun Timeline(
             )
           } else {
             hourBlocks.forEach { block ->
-              AppCard(
+              TimelineBlockCard(
+                block = block,
+                hasConflict = block.id in conflicts,
                 onClick = { onClick(block) },
                 onLongClick = { onLongClick(block) },
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(AppSpacing.md),
-              ) {
-                Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
-                  Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(block.title, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    if (block.taskOccurrenceId != null) {
-                      TextButton(onClick = { onComplete(block) }) {
-                        Text(if (block.taskStatus == com.example.lifeplanner.core.domain.model.OccurrenceStatus.COMPLETED) "已完成" else "完成")
-                      }
-                    }
-                  }
-                  Text("${formatMinute(block.startMinute)}–${formatMinute(block.endMinute)}")
-                  if (block.note.isNotBlank()) Text(block.note, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                  if (block.id in conflicts) AppStatusBadge("时间冲突", AppStatusTone.Error)
-                }
-              }
+                onComplete = { onComplete(block) },
+              )
             }
           }
         }
+      }
+    }
+  }
+}
+
+@Composable
+private fun TimelineBlockCard(
+  block: ScheduleBlock,
+  hasConflict: Boolean,
+  onClick: () -> Unit,
+  onLongClick: () -> Unit,
+  onComplete: () -> Unit,
+) {
+  val timeText = "${formatMinute(block.startMinute)}–${formatMinute(block.endMinute)}"
+  val details = if (block.note.isBlank()) timeText else "$timeText · ${block.note.trim()}"
+  AppCard(
+    onClick = onClick,
+    onLongClick = onLongClick,
+    modifier = Modifier.fillMaxWidth(),
+    contentPadding = PaddingValues(horizontal = AppSpacing.md),
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = AppSize.touchTarget),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Checkbox(
+        checked = block.completionStatus ==
+          com.example.lifeplanner.core.domain.model.OccurrenceStatus.COMPLETED,
+        onCheckedChange = { onComplete() },
+      )
+      Column(Modifier.weight(1f)) {
+        Text(
+          text = block.title,
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.Bold,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+          text = details,
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+        )
+      }
+      if (hasConflict) {
+        AppStatusBadge(
+          text = "时间冲突",
+          tone = AppStatusTone.Error,
+          modifier = Modifier.padding(start = AppSpacing.sm),
+        )
       }
     }
   }
@@ -384,14 +427,46 @@ fun QuickPlanRoute(
               )
             }
           }
-          QuickPlanInteraction.NOTE -> {
-            OutlinedTextField(
-              value = answer.note,
-              onValueChange = viewModel::setNote,
-              label = { Text("还有什么安排？") },
-              modifier = Modifier.fillMaxWidth(),
-              minLines = 5,
-            )
+          QuickPlanInteraction.TODO_CREATE -> {
+            var todoTitle by remember(card.type) { mutableStateOf("") }
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.md)) {
+              Row(
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                OutlinedTextField(
+                  value = todoTitle,
+                  onValueChange = { todoTitle = it },
+                  label = { Text("待办标题") },
+                  modifier = Modifier.weight(1f),
+                  singleLine = true,
+                )
+                AppButton(
+                  text = "创建待办",
+                  onClick = {
+                    viewModel.createTodo(todoTitle)
+                    todoTitle = ""
+                  },
+                  enabled = todoTitle.isNotBlank(),
+                  loading = state.isCreatingTodo,
+                )
+              }
+              state.dailyTodos.forEach { item ->
+                AppCard(
+                  modifier = Modifier.fillMaxWidth(),
+                  style = AppCardStyle.Tonal,
+                ) {
+                  Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                      text = item.title,
+                      style = MaterialTheme.typography.titleMedium,
+                      modifier = Modifier.weight(1f),
+                    )
+                    AppStatusBadge("当日待办", AppStatusTone.Neutral)
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -421,7 +496,7 @@ private fun QuickPlanNavigationBar(
       }
       AppButton("跳过", onSkip, variant = AppButtonVariant.Text)
       AppButton(
-        text = if (isLast) "生成时间轴" else "下一张",
+        text = if (isLast) "完成安排" else "下一张",
         onClick = onNext,
         modifier = Modifier.weight(1f),
       )

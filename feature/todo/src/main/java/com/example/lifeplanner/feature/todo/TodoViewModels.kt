@@ -2,8 +2,9 @@ package com.example.lifeplanner.feature.todo
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.lifeplanner.core.domain.model.OccurrenceStatus
 import com.example.lifeplanner.core.domain.model.DaySchedule
+import com.example.lifeplanner.core.domain.model.DailyPlanItem
+import com.example.lifeplanner.core.domain.model.OccurrenceStatus
 import com.example.lifeplanner.core.domain.model.RecurrenceFrequency
 import com.example.lifeplanner.core.domain.model.RecurrenceRule
 import com.example.lifeplanner.core.domain.model.ScheduleBlock
@@ -31,7 +32,28 @@ data class TodoUiState(
   val overview: TodoOverview = TodoOverview(),
   val daySchedule: DaySchedule = DaySchedule(LocalDate.now()),
   val errorMessage: String? = null,
-)
+) {
+  val pendingScheduleBlocks: List<ScheduleBlock>
+    get() = daySchedule.blocks.filter {
+      it.completionStatus != OccurrenceStatus.COMPLETED
+    }
+
+  val completedItems: List<DailyPlanItem>
+    get() {
+      val completedOccurrenceIds = overview.todayCompleted
+        .mapNotNull { it.occurrence?.id }
+        .toSet()
+      val completedSchedules = daySchedule.blocks.filter { block ->
+        block.completionStatus == OccurrenceStatus.COMPLETED &&
+          block.taskOccurrenceId !in completedOccurrenceIds
+      }
+      return (overview.todayCompleted + completedSchedules)
+        .sortedWith(
+          compareByDescending<DailyPlanItem> { it.completedAt ?: Long.MIN_VALUE }
+            .thenBy(DailyPlanItem::title),
+        )
+    }
+}
 
 class TodoViewModel(
   private val repository: TaskRepository,
@@ -64,6 +86,10 @@ class TodoViewModel(
 
   fun setStatus(occurrenceId: Long, status: OccurrenceStatus) {
     viewModelScope.launch { repository.setOccurrenceStatus(occurrenceId, status) }
+  }
+
+  fun setScheduleStatus(blockId: Long, status: OccurrenceStatus) {
+    viewModelScope.launch { scheduleRepository.setBlockStatus(blockId, status) }
   }
 
   fun archive(taskId: Long) {
@@ -118,12 +144,28 @@ class TaskEditorViewModel(
 
   private var loadedId: Long? = null
 
+  fun startCreating() {
+    loadedId = null
+    _state.value = TaskEditorUiState()
+  }
+
   fun load(taskId: Long?) {
     if (taskId == null || taskId == loadedId) return
     loadedId = taskId
+    _state.value = TaskEditorUiState(isLoading = true)
     viewModelScope.launch {
-      _state.update { it.copy(isLoading = true) }
-      _state.value = TaskEditorUiState(task = repository.getTask(taskId))
+      runCatching {
+        requireNotNull(repository.getTask(taskId)) { "任务不存在" }
+      }.onSuccess { task ->
+        if (loadedId == taskId) {
+          _state.value = TaskEditorUiState(task = task)
+        }
+      }.onFailure { error ->
+        if (loadedId == taskId) {
+          loadedId = null
+          _state.value = TaskEditorUiState(errorMessage = error.message)
+        }
+      }
     }
   }
 
@@ -136,6 +178,7 @@ class TaskEditorViewModel(
     recurrenceStart: LocalDate,
   ) {
     viewModelScope.launch {
+      _state.update { it.copy(isLoading = true, errorMessage = null) }
       runCatching {
         repository.saveTask(
           TaskDraft(
@@ -149,9 +192,11 @@ class TaskEditorViewModel(
           ),
         )
       }.onSuccess {
+        loadedId = null
+        _state.update { it.copy(isLoading = false) }
         _effect.emit(TaskEditorEffect.Saved)
       }.onFailure { error ->
-        _state.update { it.copy(errorMessage = error.message) }
+        _state.update { it.copy(isLoading = false, errorMessage = error.message) }
       }
     }
   }

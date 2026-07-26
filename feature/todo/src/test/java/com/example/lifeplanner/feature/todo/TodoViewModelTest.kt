@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -73,6 +74,63 @@ class TodoViewModelTest {
     assertEquals(1, viewModel.state.value.overview.urgent.size)
     assertEquals(2, viewModel.state.value.daySchedule.blocks.size)
   }
+
+  @Test
+  fun completedTasksAndSchedulesShareOneListWithoutLinkedDuplicates() =
+    runTest(mainDispatcherRule.dispatcher) {
+      val date = LocalDate.now()
+      val task = Task(
+        id = 1,
+        title = "写报告",
+        recurrenceStart = date,
+        createdAt = 1,
+        updatedAt = 1,
+      )
+      val occurrence = TaskOccurrence(
+        id = 2,
+        taskId = task.id,
+        plannedDate = date,
+        status = OccurrenceStatus.COMPLETED,
+        completedAt = 20,
+      )
+      val overview = TodoOverview(todayCompleted = listOf(TodoItem(task, occurrence)))
+      val schedule = DaySchedule(
+        date,
+        blocks = listOf(
+          ScheduleBlock(
+            id = 10,
+            date = date,
+            startMinute = 9 * 60,
+            endMinute = 10 * 60,
+            title = task.title,
+            taskOccurrenceId = occurrence.id,
+            taskStatus = OccurrenceStatus.COMPLETED,
+            taskCompletedAt = occurrence.completedAt,
+          ),
+          ScheduleBlock(
+            id = 11,
+            date = date,
+            startMinute = 10 * 60,
+            endMinute = 11 * 60,
+            title = "晨会",
+            scheduleStatus = OccurrenceStatus.COMPLETED,
+            scheduleCompletedAt = 10,
+          ),
+        ),
+      )
+
+      val viewModel = TodoViewModel(
+        FakeTaskRepository(overview),
+        FakeScheduleRepository(schedule),
+      )
+      advanceUntilIdle()
+
+      assertEquals(
+        listOf("写报告", "晨会"),
+        viewModel.state.value.completedItems.map { it.title },
+      )
+      assertTrue(viewModel.state.value.pendingScheduleBlocks.isEmpty())
+    }
 }
 
 private class FakeTaskRepository(
@@ -105,6 +163,7 @@ private class FakeScheduleRepository(
     startMinute: Int,
     endMinute: Int,
   ): Long = 0
+  override suspend fun setBlockStatus(id: Long, status: OccurrenceStatus) = Unit
   override suspend fun archiveBlock(id: Long) = Unit
   override suspend fun startQuickPlan(date: LocalDate): QuickPlanDraft = QuickPlanDraft(date)
   override suspend fun applyQuickPlan(draft: QuickPlanDraft, baseline: QuickPlanDraft) = Unit

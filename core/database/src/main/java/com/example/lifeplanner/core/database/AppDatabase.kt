@@ -35,7 +35,7 @@ import com.example.lifeplanner.core.database.entity.TaskOccurrenceEntity
     StockSnapshotEntity::class,
     ShoppingEntryEntity::class,
   ],
-  version = 6,
+  version = 7,
   exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -55,7 +55,7 @@ abstract class AppDatabase : RoomDatabase() {
           context.applicationContext,
           AppDatabase::class.java,
           "lifeplanner.db",
-        ).addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+        ).addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
           .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2)
           .build()
           .also { instance = it }
@@ -114,6 +114,20 @@ abstract class AppDatabase : RoomDatabase() {
           ALTER TABLE `quick_plan_period_entry`
           ADD COLUMN `is_included` INTEGER NOT NULL DEFAULT 1
           """.trimIndent(),
+        )
+      }
+    }
+
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+          """
+          ALTER TABLE `schedule_block`
+          ADD COLUMN `status` TEXT NOT NULL DEFAULT 'PENDING'
+          """.trimIndent(),
+        )
+        db.execSQL(
+          "ALTER TABLE `schedule_block` ADD COLUMN `completed_at` INTEGER",
         )
       }
     }

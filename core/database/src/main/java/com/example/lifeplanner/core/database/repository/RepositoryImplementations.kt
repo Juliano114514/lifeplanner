@@ -188,6 +188,8 @@ class ScheduleRepositoryImpl(
       source = existing?.source ?: ScheduleSource.MANUAL.name,
       isUserModified = existing != null,
       isArchived = false,
+      status = existing?.status ?: OccurrenceStatus.PENDING.name,
+      completedAt = existing?.completedAt,
       quickPlanCardType = existing?.quickPlanCardType,
       quickPlanEntryKey = existing?.quickPlanEntryKey,
     )
@@ -220,10 +222,29 @@ class ScheduleRepositoryImpl(
       source = ScheduleSource.MANUAL.name,
       isUserModified = true,
       isArchived = false,
+      status = existing?.status ?: OccurrenceStatus.PENDING.name,
+      completedAt = existing?.completedAt,
     )
     if (existing == null) scheduleDao.insertBlock(entity) else {
       scheduleDao.updateBlock(entity)
       entity.id
+    }
+  }
+
+  override suspend fun setBlockStatus(id: Long, status: OccurrenceStatus) {
+    database.withTransaction {
+      val block = requireNotNull(scheduleDao.getBlock(id)) { "日程不存在" }
+      val completedAt = if (status == OccurrenceStatus.COMPLETED) {
+        System.currentTimeMillis()
+      } else {
+        null
+      }
+      val occurrenceId = block.taskOccurrenceId
+      if (occurrenceId == null) {
+        scheduleDao.setBlockStatus(id, status.name, completedAt)
+      } else {
+        taskDao.setOccurrenceStatus(occurrenceId, status.name, completedAt)
+      }
     }
   }
 
@@ -374,6 +395,8 @@ class ScheduleRepositoryImpl(
       source = ScheduleSource.QUICK_PLAN.name,
       isUserModified = false,
       isArchived = false,
+      status = OccurrenceStatus.PENDING.name,
+      completedAt = null,
       quickPlanCardType = ref.cardType.name,
       quickPlanEntryKey = ref.slotKey,
     )

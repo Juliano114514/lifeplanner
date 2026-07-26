@@ -138,6 +138,21 @@ class DomainRulesTest {
   }
 
   @Test
+  fun quickPlanOtherAnswerDoesNotGenerateScheduleBlocks() {
+    val draft = QuickPlanDraft(
+      date = LocalDate.of(2026, 7, 27),
+      answers = mapOf(
+        QuickPlanCardType.OTHER to QuickPlanAnswer(
+          cardType = QuickPlanCardType.OTHER,
+          note = "买打印纸",
+        ),
+      ),
+    )
+
+    assertTrue(QuickPlanGenerator.blocks(draft).isEmpty())
+  }
+
+  @Test
   fun quickPlanPeriodsUpdateIndependentlyAndRestClearsLocation() {
     var draft = QuickPlanReducer.newDraft(LocalDate.of(2026, 7, 26))
     draft = QuickPlanReducer.setPeriodTag(draft, DayPeriod.MORNING, "学习")

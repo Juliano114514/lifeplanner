@@ -76,7 +76,9 @@ interface TaskDao {
 interface ScheduleDao {
   @Query(
     """
-    SELECT schedule_block.*, task_occurrence.status AS task_status
+    SELECT schedule_block.*,
+      task_occurrence.status AS task_status,
+      task_occurrence.completed_at AS task_completed_at
     FROM schedule_block
     LEFT JOIN task_occurrence ON task_occurrence.id = schedule_block.task_occurrence_id
     WHERE schedule_block.date = :date AND schedule_block.is_archived = 0
@@ -104,6 +106,9 @@ interface ScheduleDao {
 
   @Query("UPDATE schedule_block SET is_archived = 1 WHERE id = :id")
   suspend fun archiveBlock(id: Long)
+
+  @Query("UPDATE schedule_block SET status = :status, completed_at = :completedAt WHERE id = :id")
+  suspend fun setBlockStatus(id: Long, status: String, completedAt: Long?)
 
   @Query(
     """

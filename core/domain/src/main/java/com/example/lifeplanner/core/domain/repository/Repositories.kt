@@ -39,6 +39,7 @@ interface ScheduleRepository {
     startMinute: Int,
     endMinute: Int,
   ): Long
+  suspend fun setBlockStatus(id: Long, status: OccurrenceStatus)
   suspend fun archiveBlock(id: Long)
   suspend fun startQuickPlan(date: LocalDate): QuickPlanDraft
   suspend fun applyQuickPlan(draft: QuickPlanDraft, baseline: QuickPlanDraft)

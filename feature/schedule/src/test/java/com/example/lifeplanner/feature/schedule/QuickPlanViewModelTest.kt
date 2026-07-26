@@ -4,6 +4,7 @@ import com.example.lifeplanner.core.domain.model.DayPeriod
 import com.example.lifeplanner.core.domain.model.DaySchedule
 import com.example.lifeplanner.core.domain.model.FoodDetails
 import com.example.lifeplanner.core.domain.model.FoodKind
+import com.example.lifeplanner.core.domain.model.OccurrenceStatus
 import com.example.lifeplanner.core.domain.model.QuickPlanAnswer
 import com.example.lifeplanner.core.domain.model.QuickPlanCardType
 import com.example.lifeplanner.core.domain.model.QuickPlanDraft
@@ -16,9 +17,15 @@ import com.example.lifeplanner.core.domain.model.StockItemDraft
 import com.example.lifeplanner.core.domain.model.StockKind
 import com.example.lifeplanner.core.domain.model.StockLevel
 import com.example.lifeplanner.core.domain.model.StorageLocation
+import com.example.lifeplanner.core.domain.model.Task
+import com.example.lifeplanner.core.domain.model.TaskDraft
+import com.example.lifeplanner.core.domain.model.TaskOccurrence
+import com.example.lifeplanner.core.domain.model.TodoItem
+import com.example.lifeplanner.core.domain.model.TodoOverview
 import com.example.lifeplanner.core.domain.model.TrackingMode
 import com.example.lifeplanner.core.domain.repository.ScheduleRepository
 import com.example.lifeplanner.core.domain.repository.StockRepository
+import com.example.lifeplanner.core.domain.repository.TaskRepository
 import java.time.LocalDate
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -51,7 +58,11 @@ class QuickPlanViewModelTest {
       ),
     )
     val scheduleRepository = FakeScheduleRepository(restored)
-    val viewModel = QuickPlanViewModel(scheduleRepository, FakeStockRepository())
+    val viewModel = QuickPlanViewModel(
+      scheduleRepository,
+      FakeStockRepository(),
+      FakeTaskRepository(),
+    )
 
     viewModel.load(date.toEpochDay())
     advanceUntilIdle()
@@ -85,6 +96,7 @@ class QuickPlanViewModelTest {
     val viewModel = QuickPlanViewModel(
       FakeScheduleRepository(QuickPlanDraft(date)),
       FakeStockRepository(foods),
+      FakeTaskRepository(),
     )
 
     viewModel.load(date.toEpochDay())
@@ -92,6 +104,31 @@ class QuickPlanViewModelTest {
 
     assertEquals(listOf("番茄"), viewModel.state.value.availableFoods.map { it.item.name })
   }
+
+  @Test
+  fun otherStepCreatesTitleOnlyDailyTodoAndDisplaysIt() =
+    runTest(mainDispatcherRule.dispatcher) {
+      val date = LocalDate.of(2026, 7, 27)
+      val taskRepository = FakeTaskRepository()
+      val viewModel = QuickPlanViewModel(
+        FakeScheduleRepository(QuickPlanDraft(date)),
+        FakeStockRepository(),
+        taskRepository,
+      )
+
+      viewModel.load(date.toEpochDay())
+      advanceUntilIdle()
+      viewModel.createTodo("  买打印纸  ")
+      advanceUntilIdle()
+
+      val saved = taskRepository.savedDrafts.single()
+      assertEquals("买打印纸", saved.title)
+      assertEquals("", saved.note)
+      assertEquals(null, saved.dueAt)
+      assertEquals(null, saved.recurrence)
+      assertEquals(date, saved.recurrenceStart)
+      assertEquals(listOf("买打印纸"), viewModel.state.value.dailyTodos.map { it.title })
+    }
 
   private fun QuickPlanDraft.workEntry(period: DayPeriod): QuickPlanPeriodEntry =
     answers.getValue(QuickPlanCardType.WORK).periodEntries.first { it.period == period }
@@ -138,12 +175,53 @@ private class FakeScheduleRepository(
     startMinute: Int,
     endMinute: Int,
   ): Long = 0
+  override suspend fun setBlockStatus(id: Long, status: OccurrenceStatus) = Unit
   override suspend fun archiveBlock(id: Long) = Unit
   override suspend fun startQuickPlan(date: LocalDate): QuickPlanDraft =
     restoredDraft ?: QuickPlanDraft(date)
   override suspend fun applyQuickPlan(draft: QuickPlanDraft, baseline: QuickPlanDraft) {
     appliedDrafts += draft
   }
+}
+
+private class FakeTaskRepository : TaskRepository {
+  private val values = MutableStateFlow<List<TodoItem>>(emptyList())
+  private var nextId = 1L
+  val savedDrafts = mutableListOf<TaskDraft>()
+
+  override fun observeTodo(date: LocalDate): Flow<TodoOverview> =
+    MutableStateFlow(TodoOverview())
+  override fun observeSchedulable(date: LocalDate): Flow<List<TodoItem>> = values
+  override suspend fun getTask(id: Long): Task? = values.value
+    .firstOrNull { it.task.id == id }
+    ?.task
+  override suspend fun saveTask(draft: TaskDraft): Long {
+    savedDrafts += draft
+    val id = nextId++
+    val task = Task(
+      id = id,
+      title = draft.title,
+      recurrenceStart = draft.recurrenceStart,
+      createdAt = id,
+      updatedAt = id,
+    )
+    values.value += TodoItem(
+      task = task,
+      occurrence = TaskOccurrence(
+        id = id,
+        taskId = id,
+        plannedDate = draft.recurrenceStart,
+      ),
+    )
+    return id
+  }
+  override suspend fun setPinned(taskId: Long, pinned: Boolean) = Unit
+  override suspend fun setOccurrenceStatus(
+    occurrenceId: Long,
+    status: OccurrenceStatus,
+  ) = Unit
+  override suspend fun ensureOccurrences(start: LocalDate, endInclusive: LocalDate) = Unit
+  override suspend fun archiveTask(taskId: Long) = Unit
 }
 
 private class FakeStockRepository(

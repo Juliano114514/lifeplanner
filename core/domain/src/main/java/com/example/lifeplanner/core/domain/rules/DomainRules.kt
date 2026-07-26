@@ -144,26 +144,6 @@ object QuickPlanGenerator {
       val end = if (hour == 0) 24 * 60 else hour * 60
       add(generated(draft.date, end - 30, end, "回家", QuickPlanCardType.RETURN_HOME, SINGLE_SLOT))
     }
-    draft.answers[QuickPlanCardType.OTHER]?.let { answer ->
-      val notes = listOf(answer.note) + answer.extraNotes
-      notes.forEachIndexed { index, note ->
-        if (note.isBlank()) return@forEachIndexed
-        val start = 21 * 60 + index * 30
-        if (start < 24 * 60) {
-          add(
-            generated(
-              draft.date,
-              start,
-              (start + 30).coerceAtMost(24 * 60),
-              "其他",
-              QuickPlanCardType.OTHER,
-              itemSlot(index),
-              note,
-            ),
-          )
-        }
-      }
-    }
   }
 
   private fun MutableList<ScheduleBlock>.addPeriodEntries(
@@ -277,15 +257,10 @@ object QuickPlanGenerator {
 
   fun periodSlot(period: DayPeriod): String = "period:${period.name}"
 
-  fun itemSlot(index: Int): String = "item:$index"
-
   fun periodFromSlot(slotKey: String): DayPeriod? =
     slotKey.removePrefix("period:").takeIf { it != slotKey }?.let {
       runCatching { DayPeriod.valueOf(it) }.getOrNull()
     }
-
-  fun itemIndexFromSlot(slotKey: String): Int? =
-    slotKey.removePrefix("item:").takeIf { it != slotKey }?.toIntOrNull()
 
   const val SINGLE_SLOT = "single"
 
@@ -327,7 +302,6 @@ object QuickPlanReconciler {
         it.quickPlanEntryRef != null
     }
     val linkedByType = linked.groupBy { requireNotNull(it.quickPlanEntryRef).cardType }
-    val generatedByRef = QuickPlanGenerator.blocks(draft).associateBy(ScheduleBlock::quickPlanEntryRef)
     val answers = draft.answers.toMutableMap()
 
     reconcilePeriods(QuickPlanCardType.WORK, linkedByType, answers)
@@ -337,8 +311,6 @@ object QuickPlanReconciler {
     reconcileMeal(QuickPlanCardType.DINNER, linkedByType, answers)
     reconcileReturnHome(linkedByType, answers)
     reconcileFitness(linkedByType, answers)
-    reconcileOther(linkedByType, generatedByRef, answers)
-
     return draft.copy(
       currentIndex = 0,
       answers = answers,
@@ -438,38 +410,6 @@ object QuickPlanReconciler {
     }
     val selected = DayPeriod.entries.filter(periods::contains).map { it.fitnessLabel() }
     answers[type] = (existing ?: QuickPlanAnswer(type)).copy(selectedOptions = selected)
-  }
-
-  private fun reconcileOther(
-    linkedByType: Map<QuickPlanCardType, List<ScheduleBlock>>,
-    generatedByRef: Map<QuickPlanEntryRef?, ScheduleBlock>,
-    answers: MutableMap<QuickPlanCardType, QuickPlanAnswer>,
-  ) {
-    val type = QuickPlanCardType.OTHER
-    val indexed = linkedByType[type].orEmpty().mapNotNull { block ->
-      block.quickPlanEntryRef?.let { ref ->
-        QuickPlanGenerator.itemIndexFromSlot(ref.slotKey)?.let { index ->
-          Triple(index, ref, block)
-        }
-      }
-    }.sortedBy { it.first }
-    if (indexed.isEmpty()) {
-      answers.remove(type)
-      return
-    }
-
-    val notes = MutableList(indexed.maxOf { it.first } + 1) { "" }
-    indexed.forEach { (index, ref, block) ->
-      notes[index] = generatedByRef[ref]?.note
-        ?.takeIf(String::isNotBlank)
-        ?: block.note.takeIf(String::isNotBlank)
-        ?: block.title.takeUnless { it == "其他" }.orEmpty()
-    }
-    answers[type] = QuickPlanAnswer(
-      cardType = type,
-      note = notes.firstOrNull().orEmpty(),
-      extraNotes = notes.drop(1),
-    )
   }
 
   private fun DayPeriod.fitnessLabel(): String = when (this) {

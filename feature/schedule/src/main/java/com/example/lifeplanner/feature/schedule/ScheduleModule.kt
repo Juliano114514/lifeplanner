@@ -5,5 +5,5 @@ import org.koin.dsl.module
 
 val scheduleFeatureModule = module {
   viewModel { ScheduleViewModel(get(), get()) }
-  viewModel { QuickPlanViewModel(get(), get()) }
+  viewModel { QuickPlanViewModel(get(), get(), get()) }
 }

@@ -73,6 +73,8 @@ data class ScheduleBlockEntity(
   val source: String,
   @ColumnInfo(name = "is_user_modified") val isUserModified: Boolean,
   @ColumnInfo(name = "is_archived") val isArchived: Boolean,
+  val status: String,
+  @ColumnInfo(name = "completed_at") val completedAt: Long?,
   @ColumnInfo(name = "quick_plan_card_type") val quickPlanCardType: String? = null,
   @ColumnInfo(name = "quick_plan_entry_key") val quickPlanEntryKey: String? = null,
 )
@@ -80,6 +82,7 @@ data class ScheduleBlockEntity(
 data class ScheduleBlockRow(
   @Embedded val block: ScheduleBlockEntity,
   @ColumnInfo(name = "task_status") val taskStatus: String?,
+  @ColumnInfo(name = "task_completed_at") val taskCompletedAt: Long?,
 )
 
 @Entity(tableName = "quick_plan_draft")
