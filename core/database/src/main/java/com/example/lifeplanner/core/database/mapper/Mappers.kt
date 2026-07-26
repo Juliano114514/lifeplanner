@@ -3,6 +3,7 @@ package com.example.lifeplanner.core.database.mapper
 import com.example.lifeplanner.core.database.entity.FoodDetailsEntity
 import com.example.lifeplanner.core.database.entity.QuickPlanAnswerEntity
 import com.example.lifeplanner.core.database.entity.QuickPlanDraftEntity
+import com.example.lifeplanner.core.database.entity.QuickPlanPeriodEntryEntity
 import com.example.lifeplanner.core.database.entity.ScheduleBlockEntity
 import com.example.lifeplanner.core.database.entity.ScheduleBlockRow
 import com.example.lifeplanner.core.database.entity.ShoppingEntryEntity
@@ -12,10 +13,12 @@ import com.example.lifeplanner.core.database.entity.TaskEntity
 import com.example.lifeplanner.core.database.entity.TaskOccurrenceEntity
 import com.example.lifeplanner.core.domain.model.FoodDetails
 import com.example.lifeplanner.core.domain.model.FoodKind
+import com.example.lifeplanner.core.domain.model.DayPeriod
 import com.example.lifeplanner.core.domain.model.OccurrenceStatus
 import com.example.lifeplanner.core.domain.model.QuickPlanAnswer
 import com.example.lifeplanner.core.domain.model.QuickPlanCardType
 import com.example.lifeplanner.core.domain.model.QuickPlanDraft
+import com.example.lifeplanner.core.domain.model.QuickPlanPeriodEntry
 import com.example.lifeplanner.core.domain.model.RecurrenceFrequency
 import com.example.lifeplanner.core.domain.model.RecurrenceRule
 import com.example.lifeplanner.core.domain.model.ScheduleBlock
@@ -79,20 +82,38 @@ internal fun ScheduleBlockEntity.toDomain(taskStatus: OccurrenceStatus? = null):
     isArchived = isArchived,
   )
 
-internal fun QuickPlanAnswerEntity.toDomain(): QuickPlanAnswer = QuickPlanAnswer(
-  cardType = QuickPlanCardType.valueOf(cardType),
-  selectedOptions = selectedOptions.decodeList(),
-  subSelections = subSelections.decodeList(),
-  hour = hour,
-  note = note,
-  extraNotes = extraNotes.decodeList(),
-)
+internal fun QuickPlanAnswerEntity.toDomain(
+  periodEntries: List<QuickPlanPeriodEntryEntity>,
+): QuickPlanAnswer {
+  val type = QuickPlanCardType.valueOf(cardType)
+  val selected = selectedOptions.decodeList()
+  val subSelected = subSelections.decodeList()
+  val entries = periodEntries.map(QuickPlanPeriodEntryEntity::toDomain)
+    .ifEmpty { legacyPeriodEntries(type, selected, subSelected) }
+  return QuickPlanAnswer(
+    cardType = type,
+    selectedOptions = selected,
+    subSelections = subSelected,
+    hour = hour,
+    note = note,
+    extraNotes = extraNotes.decodeList(),
+    periodEntries = entries,
+  )
+}
 
-internal fun QuickPlanDraftEntity.toDomain(answers: List<QuickPlanAnswerEntity>): QuickPlanDraft =
+internal fun QuickPlanDraftEntity.toDomain(
+  answers: List<QuickPlanAnswerEntity>,
+  periodEntries: List<QuickPlanPeriodEntryEntity>,
+): QuickPlanDraft =
   QuickPlanDraft(
     date = LocalDate.parse(date),
     currentIndex = currentIndex,
-    answers = answers.associate { it.cardType.let(QuickPlanCardType::valueOf) to it.toDomain() },
+    answers = answers.associate { answer ->
+      val answerEntries = periodEntries.filter {
+        it.draftDate == answer.draftDate && it.cardType == answer.cardType
+      }
+      QuickPlanCardType.valueOf(answer.cardType) to answer.toDomain(answerEntries)
+    },
     completedAt = completedAt,
   )
 
@@ -146,6 +167,48 @@ internal fun QuickPlanAnswer.toEntity(date: LocalDate): QuickPlanAnswerEntity =
     note = note,
     extraNotes = extraNotes.encodeList(),
   )
+
+internal fun QuickPlanPeriodEntry.toEntity(
+  date: LocalDate,
+  cardType: QuickPlanCardType,
+): QuickPlanPeriodEntryEntity = QuickPlanPeriodEntryEntity(
+  draftDate = date.toString(),
+  cardType = cardType.name,
+  period = period.name,
+  tag = tag,
+  customText = customText,
+  location = location,
+)
+
+private fun QuickPlanPeriodEntryEntity.toDomain(): QuickPlanPeriodEntry =
+  QuickPlanPeriodEntry(
+    period = DayPeriod.valueOf(period),
+    tag = tag,
+    customText = customText,
+    location = location,
+  )
+
+private fun legacyPeriodEntries(
+  type: QuickPlanCardType,
+  selected: List<String>,
+  subSelected: List<String>,
+): List<QuickPlanPeriodEntry> {
+  if (type != QuickPlanCardType.WORK && type != QuickPlanCardType.GO_OUT) return emptyList()
+  return selected.mapNotNull { label ->
+    val period = when (label) {
+      "早上" -> DayPeriod.MORNING
+      "下午" -> DayPeriod.AFTERNOON
+      "晚上" -> DayPeriod.EVENING
+      else -> null
+    } ?: return@mapNotNull null
+    QuickPlanPeriodEntry(
+      period = period,
+      tag = if (type == QuickPlanCardType.GO_OUT) subSelected.firstOrNull().orEmpty() else "",
+      customText = if (type == QuickPlanCardType.WORK) "学习 / 工作" else "出门",
+      location = if (type == QuickPlanCardType.WORK) subSelected.firstOrNull().orEmpty() else "",
+    )
+  }
+}
 
 private fun Long.toLocalDateTime(): LocalDateTime =
   LocalDateTime.ofInstant(Instant.ofEpochMilli(this), ZoneId.systemDefault())

@@ -43,6 +43,7 @@ import com.example.lifeplanner.core.domain.rules.StockRules
 import com.example.libui.components.AppButton
 import com.example.libui.components.AppCard
 import com.example.libui.components.AppChoiceChip
+import com.example.libui.components.AppDatePickerField
 import com.example.libui.components.AppEmptyState
 import com.example.libui.components.AppErrorState
 import com.example.libui.components.AppFab
@@ -51,7 +52,6 @@ import com.example.libui.components.AppStatusBadge
 import com.example.libui.components.AppStatusTone
 import com.example.libui.components.AppTopBar
 import com.example.libui.theme.AppSpacing
-import java.time.LocalDate
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -204,8 +204,7 @@ fun StockEditorRoute(
   var status by remember(details?.item?.id) { mutableStateOf(details?.item?.currentStatus ?: StockLevel.ENOUGH) }
   var foodKind by remember(details?.item?.id) { mutableStateOf(details?.foodDetails?.foodKind ?: FoodKind.INGREDIENT) }
   var storage by remember(details?.item?.id) { mutableStateOf(details?.foodDetails?.storageLocation ?: StorageLocation.REFRIGERATED) }
-  var expiry by remember(details?.item?.id) { mutableStateOf(details?.foodDetails?.expiryDate?.toString().orEmpty()) }
-  var localError by remember { mutableStateOf<String?>(null) }
+  var expiry by remember(details?.item?.id) { mutableStateOf(details?.foodDetails?.expiryDate) }
 
   Scaffold(
     modifier = modifier,
@@ -268,20 +267,21 @@ fun StockEditorRoute(
             }
           }
         }
-        item { OutlinedTextField(expiry, { expiry = it }, label = { Text("保质期 yyyy-MM-dd") }, modifier = Modifier.fillMaxWidth()) }
+        item {
+          AppDatePickerField(
+            value = expiry,
+            onValueChange = { expiry = it },
+            label = "保质期",
+            modifier = Modifier.fillMaxWidth(),
+            optional = true,
+          )
+        }
       }
       item {
-        (localError ?: state.errorMessage)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         AppButton(
           text = "保存",
           onClick = {
-            val parsedExpiry = runCatching {
-              expiry.takeIf(String::isNotBlank)?.let(LocalDate::parse)
-            }.getOrElse {
-              localError = "保质期格式应为 yyyy-MM-dd"
-              return@AppButton
-            }
-            localError = null
             viewModel.save(
               kind = kind,
               name = name,
@@ -293,7 +293,7 @@ fun StockEditorRoute(
               threshold = if (mode == TrackingMode.STATUS) null else threshold.toDoubleOrNull(),
               foodKind = foodKind,
               storage = storage,
-              expiry = parsedExpiry,
+              expiry = expiry,
             )
           },
           modifier = Modifier.fillMaxWidth(),

@@ -3,16 +3,21 @@ package com.example.lifeplanner.feature.schedule
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lifeplanner.core.domain.model.DaySchedule
+import com.example.lifeplanner.core.domain.model.DayPeriod
 import com.example.lifeplanner.core.domain.model.OccurrenceStatus
 import com.example.lifeplanner.core.domain.model.QuickPlanCardDefinition
 import com.example.lifeplanner.core.domain.model.QuickPlanDraft
 import com.example.lifeplanner.core.domain.model.ScheduleBlock
 import com.example.lifeplanner.core.domain.model.ScheduleBlockDraft
+import com.example.lifeplanner.core.domain.model.StockItemDetails
+import com.example.lifeplanner.core.domain.model.StockKind
 import com.example.lifeplanner.core.domain.model.TodoItem
 import com.example.lifeplanner.core.domain.quickplan.QuickPlanCatalog
 import com.example.lifeplanner.core.domain.quickplan.QuickPlanReducer
 import com.example.lifeplanner.core.domain.repository.ScheduleRepository
 import com.example.lifeplanner.core.domain.repository.TaskRepository
+import com.example.lifeplanner.core.domain.repository.StockRepository
+import com.example.lifeplanner.core.domain.rules.StockRules
 import java.time.LocalDate
 import java.time.YearMonth
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,6 +26,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
@@ -134,6 +140,7 @@ class ScheduleViewModel(
 data class QuickPlanUiState(
   val isLoading: Boolean = true,
   val draft: QuickPlanDraft = QuickPlanReducer.newDraft(LocalDate.now()),
+  val availableFoods: List<StockItemDetails> = emptyList(),
   val errorMessage: String? = null,
 ) {
   val currentCard: QuickPlanCardDefinition
@@ -148,12 +155,29 @@ sealed interface QuickPlanEffect {
 
 class QuickPlanViewModel(
   private val repository: ScheduleRepository,
+  private val stockRepository: StockRepository,
 ) : ViewModel() {
   private val _state = MutableStateFlow(QuickPlanUiState())
   val state: StateFlow<QuickPlanUiState> = _state.asStateFlow()
   private val _effect = MutableSharedFlow<QuickPlanEffect>()
   val effect: SharedFlow<QuickPlanEffect> = _effect.asSharedFlow()
   private var loadedDate: LocalDate? = null
+  private var latestFoods: List<StockItemDetails> = emptyList()
+
+  init {
+    viewModelScope.launch {
+      stockRepository.observeStock(StockKind.FOOD)
+        .catch { error ->
+          _state.update { it.copy(errorMessage = error.message) }
+        }
+        .collect { foods ->
+          latestFoods = foods
+          _state.update {
+            it.copy(availableFoods = StockRules.availableFoods(foods, it.draft.date))
+          }
+        }
+    }
+  }
 
   fun load(epochDay: Long) {
     val date = LocalDate.ofEpochDay(epochDay)
@@ -161,7 +185,11 @@ class QuickPlanViewModel(
     loadedDate = date
     viewModelScope.launch {
       val draft = repository.getQuickPlanDraft(date) ?: QuickPlanReducer.newDraft(date)
-      _state.value = QuickPlanUiState(isLoading = false, draft = draft)
+      _state.value = QuickPlanUiState(
+        isLoading = false,
+        draft = draft,
+        availableFoods = StockRules.availableFoods(latestFoods, date),
+      )
     }
   }
 
@@ -170,6 +198,13 @@ class QuickPlanViewModel(
   fun toggleFollowUp(label: String) = reduce { QuickPlanReducer.toggleFollowUp(it, label) }
   fun setHour(hour: Int) = reduce { QuickPlanReducer.setHour(it, hour) }
   fun setNote(note: String) = reduce { QuickPlanReducer.setNote(it, note) }
+  fun setPeriodTag(period: DayPeriod, tag: String) =
+    reduce { QuickPlanReducer.setPeriodTag(it, period, tag) }
+  fun setPeriodText(period: DayPeriod, text: String) =
+    reduce { QuickPlanReducer.setPeriodText(it, period, text) }
+  fun setPeriodLocation(period: DayPeriod, location: String) =
+    reduce { QuickPlanReducer.setPeriodLocation(it, period, location) }
+  fun clearPeriod(period: DayPeriod) = reduce { QuickPlanReducer.clearPeriod(it, period) }
   fun previous() = reduce { QuickPlanReducer.previous(it) }
   fun skip() = reduce { QuickPlanReducer.skip(it) }
   fun next() = reduce { QuickPlanReducer.next(it) }

@@ -9,6 +9,7 @@ import androidx.room.Update
 import com.example.lifeplanner.core.database.entity.FoodDetailsEntity
 import com.example.lifeplanner.core.database.entity.QuickPlanAnswerEntity
 import com.example.lifeplanner.core.database.entity.QuickPlanDraftEntity
+import com.example.lifeplanner.core.database.entity.QuickPlanPeriodEntryEntity
 import com.example.lifeplanner.core.database.entity.ScheduleBlockEntity
 import com.example.lifeplanner.core.database.entity.ScheduleBlockRow
 import com.example.lifeplanner.core.database.entity.ShoppingEntryEntity
@@ -121,11 +122,17 @@ interface QuickPlanDao {
   @Query("SELECT * FROM quick_plan_answer WHERE draft_date = :date")
   suspend fun getAnswers(date: String): List<QuickPlanAnswerEntity>
 
+  @Query("SELECT * FROM quick_plan_period_entry WHERE draft_date = :date")
+  suspend fun getPeriodEntries(date: String): List<QuickPlanPeriodEntryEntity>
+
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun upsertDraft(entity: QuickPlanDraftEntity)
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun upsertAnswers(entities: List<QuickPlanAnswerEntity>)
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun upsertPeriodEntries(entities: List<QuickPlanPeriodEntryEntity>)
 
   @Query("DELETE FROM quick_plan_answer WHERE draft_date = :date")
   suspend fun deleteAnswers(date: String)

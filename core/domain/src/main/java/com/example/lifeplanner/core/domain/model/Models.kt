@@ -78,7 +78,24 @@ enum class QuickPlanCardType {
   OTHER,
 }
 
-enum class QuickPlanInteraction { MULTI_TAG, SINGLE_TAG, HOUR_TIME, NOTE }
+enum class DayPeriod { MORNING, AFTERNOON, EVENING }
+
+data class QuickPlanPeriodEntry(
+  val period: DayPeriod,
+  val tag: String = "",
+  val customText: String = "",
+  val location: String = "",
+) {
+  val hasActivity: Boolean
+    get() = tag.isNotBlank() || customText.isNotBlank()
+}
+
+data class QuickPlanPeriodConfig(
+  val activityOptions: List<String>,
+  val locationOptions: List<String> = emptyList(),
+)
+
+enum class QuickPlanInteraction { MULTI_TAG, SINGLE_TAG, PERIOD_PLAN, HOUR_TIME, NOTE }
 
 data class QuickPlanFollowUp(
   val title: String,
@@ -95,6 +112,7 @@ data class QuickPlanCardDefinition(
   val options: List<String> = emptyList(),
   val exclusiveOption: String? = null,
   val followUp: QuickPlanFollowUp? = null,
+  val periodConfig: QuickPlanPeriodConfig? = null,
 ) {
   fun activeFollowUp(selected: List<String>): QuickPlanFollowUp? {
     val config = followUp ?: return null
@@ -110,6 +128,7 @@ data class QuickPlanAnswer(
   val hour: Int? = null,
   val note: String = "",
   val extraNotes: List<String> = emptyList(),
+  val periodEntries: List<QuickPlanPeriodEntry> = emptyList(),
 )
 
 data class QuickPlanDraft(

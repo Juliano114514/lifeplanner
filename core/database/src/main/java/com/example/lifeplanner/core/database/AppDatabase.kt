@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.lifeplanner.core.database.dao.QuickPlanDao
 import com.example.lifeplanner.core.database.dao.ScheduleDao
 import com.example.lifeplanner.core.database.dao.ShoppingDao
@@ -12,6 +14,7 @@ import com.example.lifeplanner.core.database.dao.TaskDao
 import com.example.lifeplanner.core.database.entity.FoodDetailsEntity
 import com.example.lifeplanner.core.database.entity.QuickPlanAnswerEntity
 import com.example.lifeplanner.core.database.entity.QuickPlanDraftEntity
+import com.example.lifeplanner.core.database.entity.QuickPlanPeriodEntryEntity
 import com.example.lifeplanner.core.database.entity.ScheduleBlockEntity
 import com.example.lifeplanner.core.database.entity.ShoppingEntryEntity
 import com.example.lifeplanner.core.database.entity.StockItemEntity
@@ -26,12 +29,13 @@ import com.example.lifeplanner.core.database.entity.TaskOccurrenceEntity
     ScheduleBlockEntity::class,
     QuickPlanDraftEntity::class,
     QuickPlanAnswerEntity::class,
+    QuickPlanPeriodEntryEntity::class,
     StockItemEntity::class,
     FoodDetailsEntity::class,
     StockSnapshotEntity::class,
     ShoppingEntryEntity::class,
   ],
-  version = 3,
+  version = 4,
   exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -51,9 +55,37 @@ abstract class AppDatabase : RoomDatabase() {
           context.applicationContext,
           AppDatabase::class.java,
           "lifeplanner.db",
-        ).fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2)
+        ).addMigrations(MIGRATION_3_4)
+          .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2)
           .build()
           .also { instance = it }
+      }
+    }
+
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+          """
+          CREATE TABLE IF NOT EXISTS `quick_plan_period_entry` (
+            `draft_date` TEXT NOT NULL,
+            `card_type` TEXT NOT NULL,
+            `period` TEXT NOT NULL,
+            `tag` TEXT NOT NULL,
+            `custom_text` TEXT NOT NULL,
+            `location` TEXT NOT NULL,
+            PRIMARY KEY(`draft_date`, `card_type`, `period`),
+            FOREIGN KEY(`draft_date`, `card_type`)
+              REFERENCES `quick_plan_answer`(`draft_date`, `card_type`)
+              ON UPDATE NO ACTION ON DELETE CASCADE
+          )
+          """.trimIndent(),
+        )
+        db.execSQL(
+          """
+          CREATE INDEX IF NOT EXISTS `index_quick_plan_period_entry_draft_date_card_type`
+          ON `quick_plan_period_entry` (`draft_date`, `card_type`)
+          """.trimIndent(),
+        )
       }
     }
   }

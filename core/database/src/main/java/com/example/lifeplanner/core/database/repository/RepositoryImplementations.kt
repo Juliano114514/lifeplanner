@@ -226,7 +226,10 @@ class ScheduleRepositoryImpl(
 
   override suspend fun getQuickPlanDraft(date: LocalDate): QuickPlanDraft? {
     val draft = quickPlanDao.getDraft(date.toString()) ?: return null
-    return draft.toDomain(quickPlanDao.getAnswers(date.toString()))
+    return draft.toDomain(
+      answers = quickPlanDao.getAnswers(date.toString()),
+      periodEntries = quickPlanDao.getPeriodEntries(date.toString()),
+    )
   }
 
   override suspend fun saveQuickPlanDraft(draft: QuickPlanDraft) {
@@ -237,6 +240,10 @@ class ScheduleRepositoryImpl(
       quickPlanDao.deleteAnswers(draft.date.toString())
       val answers = draft.answers.values.map { it.toEntity(draft.date) }
       if (answers.isNotEmpty()) quickPlanDao.upsertAnswers(answers)
+      val periodEntries = draft.answers.values.flatMap { answer ->
+        answer.periodEntries.map { it.toEntity(draft.date, answer.cardType) }
+      }
+      if (periodEntries.isNotEmpty()) quickPlanDao.upsertPeriodEntries(periodEntries)
     }
   }
 

@@ -26,6 +26,7 @@ object AppSize {
   val calendarCell = 48.dp
   val calendarSelection = 36.dp
   val timelineHourLabel = 52.dp
+  val foodPreviewCard = 168.dp
 }
 
 object AppStroke {

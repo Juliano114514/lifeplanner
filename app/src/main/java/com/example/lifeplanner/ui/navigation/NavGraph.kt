@@ -166,6 +166,9 @@ fun LifePlannerApp(
               ),
             )
           },
+          onOpenSchedule = { epochDay ->
+            navController.navigate(ScheduleRoute(epochDay = epochDay))
+          },
         )
       }
       composable<ScheduleRoute> { entry ->

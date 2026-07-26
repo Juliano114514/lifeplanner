@@ -38,13 +38,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.lifeplanner.core.domain.model.OccurrenceStatus
 import com.example.lifeplanner.core.domain.model.RecurrenceFrequency
+import com.example.lifeplanner.core.domain.model.ScheduleBlock
+import com.example.lifeplanner.core.domain.model.ScheduleSource
 import com.example.lifeplanner.core.domain.model.TodoItem
 import com.example.libui.components.AppButton
 import com.example.libui.components.AppCard
 import com.example.libui.components.AppChoiceChip
+import com.example.libui.components.AppDatePickerField
 import com.example.libui.components.AppEmptyState
 import com.example.libui.components.AppErrorState
 import com.example.libui.components.AppFab
@@ -52,6 +56,7 @@ import com.example.libui.components.AppLoadingState
 import com.example.libui.components.AppSectionHeader
 import com.example.libui.components.AppStatusBadge
 import com.example.libui.components.AppStatusTone
+import com.example.libui.components.AppTimePickerField
 import com.example.libui.components.AppTopBar
 import com.example.libui.theme.AppSpacing
 import java.time.LocalDate
@@ -66,6 +71,7 @@ fun TodoRoute(
   onAddTask: () -> Unit,
   onEditTask: (Long) -> Unit,
   onScheduleTask: (Long) -> Unit,
+  onOpenSchedule: (Long) -> Unit,
   modifier: Modifier = Modifier,
   viewModel: TodoViewModel = koinViewModel(),
 ) {
@@ -85,6 +91,7 @@ fun TodoRoute(
         state = state,
         onEditTask = onEditTask,
         onScheduleTask = onScheduleTask,
+        onOpenSchedule = onOpenSchedule,
         onToggleComplete = { item ->
           item.occurrence?.let {
             val next = if (it.status == OccurrenceStatus.COMPLETED) {
@@ -111,6 +118,7 @@ private fun TodoContent(
   state: TodoUiState,
   onEditTask: (Long) -> Unit,
   onScheduleTask: (Long) -> Unit,
+  onOpenSchedule: (Long) -> Unit,
   onToggleComplete: (TodoItem) -> Unit,
   onTogglePin: (TodoItem) -> Unit,
   onSkip: (TodoItem) -> Unit,
@@ -119,7 +127,8 @@ private fun TodoContent(
 ) {
   val overview = state.overview
   val empty = overview.urgent.isEmpty() && overview.todayPending.isEmpty() &&
-    overview.todayCompleted.isEmpty() && overview.others.isEmpty()
+    overview.todayCompleted.isEmpty() && overview.others.isEmpty() &&
+    state.daySchedule.blocks.isEmpty()
   if (empty) {
     AppEmptyState(
       title = "今天还没有任务",
@@ -136,9 +145,66 @@ private fun TodoContent(
     verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
   ) {
     todoSection("置顶 / 临近 DDL", overview.urgent, true, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
+    scheduleSection(state.daySchedule.blocks, onOpenSchedule)
     todoSection("今日未完成", overview.todayPending, false, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
     todoSection("今日已完成", overview.todayCompleted, false, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
     todoSection("其他任务", overview.others, false, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
+  }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.scheduleSection(
+  blocks: List<ScheduleBlock>,
+  onOpenSchedule: (Long) -> Unit,
+) {
+  if (blocks.isEmpty()) return
+  item(key = "header-today-schedule") {
+    AppSectionHeader(
+      title = "今日日程",
+      count = blocks.size,
+      modifier = Modifier.padding(top = AppSpacing.sm),
+    )
+  }
+  items(blocks, key = { "schedule-${it.id}" }) { block ->
+    TodayScheduleCard(block, onOpenSchedule)
+  }
+}
+
+@Composable
+private fun TodayScheduleCard(
+  block: ScheduleBlock,
+  onOpenSchedule: (Long) -> Unit,
+) {
+  AppCard(
+    onClick = { onOpenSchedule(block.date.toEpochDay()) },
+    modifier = Modifier
+      .fillMaxWidth()
+      .testTag("today-schedule-${block.id}"),
+  ) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+          Text(block.title, style = MaterialTheme.typography.titleMedium)
+          Text(
+            text = "${formatScheduleMinute(block.startMinute)}–${formatScheduleMinute(block.endMinute)}",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
+        AppStatusBadge(
+          text = when {
+            block.taskOccurrenceId != null -> "任务"
+            block.source == ScheduleSource.QUICK_PLAN -> "快速安排"
+            else -> "手动"
+          },
+          tone = AppStatusTone.Neutral,
+        )
+      }
+      if (block.note.isNotBlank()) {
+        Text(block.note, style = MaterialTheme.typography.bodyMedium)
+      }
+      if (block.taskStatus == OccurrenceStatus.COMPLETED) {
+        AppStatusBadge("已完成", AppStatusTone.Success)
+      }
+    }
   }
 }
 
@@ -165,6 +231,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.todoSection(
     TodoCard(item, urgent, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
   }
 }
+
+private fun formatScheduleMinute(value: Int): String =
+  "%02d:%02d".format(value / 60, value % 60)
 
 @Composable
 private fun TodoCard(
@@ -241,11 +310,12 @@ fun TaskEditorRoute(
   val task = state.task
   var title by remember(task?.id) { mutableStateOf(task?.title.orEmpty()) }
   var note by remember(task?.id) { mutableStateOf(task?.note.orEmpty()) }
-  var dueDate by remember(task?.id) { mutableStateOf(task?.dueAt?.toLocalDate()?.toString().orEmpty()) }
-  var dueTime by remember(task?.id) { mutableStateOf(task?.dueAt?.toLocalTime()?.format(DateTimeFormatter.ofPattern("HH:mm")).orEmpty()) }
+  var dueDate by remember(task?.id) { mutableStateOf(task?.dueAt?.toLocalDate()) }
+  var dueTime by remember(task?.id) {
+    mutableStateOf(task?.dueAt?.toLocalTime()?.let { it.hour * 60 + it.minute })
+  }
   var pinned by remember(task?.id) { mutableStateOf(task?.isPinned ?: false) }
   var recurrence by remember(task?.id) { mutableStateOf(task?.recurrence?.frequency) }
-  var localError by remember { mutableStateOf<String?>(null) }
 
   Scaffold(
     modifier = modifier,
@@ -266,8 +336,20 @@ fun TaskEditorRoute(
       OutlinedTextField(title, { title = it }, label = { Text("任务标题") }, modifier = Modifier.fillMaxWidth())
       OutlinedTextField(note, { note = it }, label = { Text("备注") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
       Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.md)) {
-        OutlinedTextField(dueDate, { dueDate = it }, label = { Text("DDL 日期 yyyy-MM-dd") }, modifier = Modifier.weight(1f))
-        OutlinedTextField(dueTime, { dueTime = it }, label = { Text("时间 HH:mm") }, modifier = Modifier.weight(1f))
+        AppDatePickerField(
+          value = dueDate,
+          onValueChange = { dueDate = it },
+          label = "DDL 日期",
+          modifier = Modifier.weight(1f),
+          optional = true,
+        )
+        AppTimePickerField(
+          valueMinutes = dueTime,
+          onValueChange = { dueTime = it },
+          label = "时间",
+          modifier = Modifier.weight(1f),
+          optional = true,
+        )
       }
       Row(verticalAlignment = Alignment.CenterVertically) {
         Text("置顶", modifier = Modifier.weight(1f))
@@ -284,33 +366,23 @@ fun TaskEditorRoute(
           AppChoiceChip(label, recurrence == value, { recurrence = value }, modifier = Modifier.weight(1f))
         }
       }
-      (localError ?: state.errorMessage)?.let {
+      state.errorMessage?.let {
         Text(it, color = MaterialTheme.colorScheme.error)
       }
       Spacer(Modifier.height(AppSpacing.sm))
       AppButton(
         text = "保存任务",
         onClick = {
-          val parsedDate = runCatching {
-            dueDate.takeIf(String::isNotBlank)?.let(LocalDate::parse)
-          }.getOrElse {
-            localError = "DDL 日期格式应为 yyyy-MM-dd"
-            return@AppButton
-          }
-          val parsedTime = runCatching {
-            dueTime.takeIf(String::isNotBlank)?.let(LocalTime::parse)
-          }.getOrElse {
-            localError = "时间格式应为 HH:mm"
-            return@AppButton
-          }
-          localError = null
           viewModel.save(
             title = title,
             note = note,
-            dueAt = parsedDate?.let { LocalDateTime.of(it, parsedTime ?: LocalTime.of(23, 59)) },
+            dueAt = dueDate?.let {
+              val time = dueTime?.let { minute -> LocalTime.of(minute / 60, minute % 60) }
+              LocalDateTime.of(it, time ?: LocalTime.of(23, 59))
+            },
             pinned = pinned,
             frequency = recurrence,
-            recurrenceStart = parsedDate ?: task?.recurrenceStart ?: LocalDate.now(),
+            recurrenceStart = dueDate ?: task?.recurrenceStart ?: LocalDate.now(),
           )
         },
         modifier = Modifier.fillMaxWidth(),

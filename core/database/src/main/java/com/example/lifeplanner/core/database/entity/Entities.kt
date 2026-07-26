@@ -106,6 +106,28 @@ data class QuickPlanAnswerEntity(
   @ColumnInfo(name = "extra_notes") val extraNotes: String,
 )
 
+@Entity(
+  tableName = "quick_plan_period_entry",
+  primaryKeys = ["draft_date", "card_type", "period"],
+  foreignKeys = [
+    ForeignKey(
+      entity = QuickPlanAnswerEntity::class,
+      parentColumns = ["draft_date", "card_type"],
+      childColumns = ["draft_date", "card_type"],
+      onDelete = ForeignKey.CASCADE,
+    ),
+  ],
+  indices = [Index(value = ["draft_date", "card_type"])],
+)
+data class QuickPlanPeriodEntryEntity(
+  @ColumnInfo(name = "draft_date") val draftDate: String,
+  @ColumnInfo(name = "card_type") val cardType: String,
+  val period: String,
+  val tag: String,
+  @ColumnInfo(name = "custom_text") val customText: String,
+  val location: String,
+)
+
 @Entity(tableName = "stock_item", indices = [Index("kind"), Index("is_archived")])
 data class StockItemEntity(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,

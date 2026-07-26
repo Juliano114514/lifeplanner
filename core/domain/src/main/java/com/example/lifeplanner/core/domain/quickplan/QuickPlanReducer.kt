@@ -4,6 +4,8 @@ import com.example.lifeplanner.core.domain.model.QuickPlanAnswer
 import com.example.lifeplanner.core.domain.model.QuickPlanCardDefinition
 import com.example.lifeplanner.core.domain.model.QuickPlanCardType
 import com.example.lifeplanner.core.domain.model.QuickPlanDraft
+import com.example.lifeplanner.core.domain.model.DayPeriod
+import com.example.lifeplanner.core.domain.model.QuickPlanPeriodEntry
 import java.time.LocalDate
 
 object QuickPlanReducer {
@@ -50,6 +52,33 @@ object QuickPlanReducer {
   fun setNote(draft: QuickPlanDraft, note: String): QuickPlanDraft =
     putAnswer(draft, answerFor(draft, currentDefinition(draft).type).copy(note = note))
 
+  fun setPeriodTag(draft: QuickPlanDraft, period: DayPeriod, tag: String): QuickPlanDraft =
+    updatePeriod(draft, period) { current ->
+      val nextTag = tag.takeUnless { it == current.tag }.orEmpty()
+      current.copy(
+        tag = nextTag,
+        location = current.location.takeUnless { nextTag == "休息" }.orEmpty(),
+      )
+    }
+
+  fun setPeriodText(draft: QuickPlanDraft, period: DayPeriod, text: String): QuickPlanDraft =
+    updatePeriod(draft, period) { it.copy(customText = text) }
+
+  fun setPeriodLocation(draft: QuickPlanDraft, period: DayPeriod, location: String): QuickPlanDraft =
+    updatePeriod(draft, period) { current ->
+      if (current.tag == "休息") current
+      else current.copy(location = location.takeUnless { it == current.location }.orEmpty())
+    }
+
+  fun clearPeriod(draft: QuickPlanDraft, period: DayPeriod): QuickPlanDraft {
+    val definition = currentDefinition(draft)
+    val answer = answerFor(draft, definition.type)
+    return putAnswer(
+      draft,
+      answer.copy(periodEntries = answer.periodEntries.filterNot { it.period == period }),
+    )
+  }
+
   fun next(draft: QuickPlanDraft): QuickPlanDraft =
     draft.copy(currentIndex = (draft.currentIndex + 1).coerceAtMost(QuickPlanCatalog.cards.lastIndex))
 
@@ -77,6 +106,19 @@ object QuickPlanReducer {
 
   private fun answerFor(draft: QuickPlanDraft, type: QuickPlanCardType): QuickPlanAnswer =
     draft.answers[type] ?: QuickPlanAnswer(type)
+
+  private fun updatePeriod(
+    draft: QuickPlanDraft,
+    period: DayPeriod,
+    update: (QuickPlanPeriodEntry) -> QuickPlanPeriodEntry,
+  ): QuickPlanDraft {
+    val definition = currentDefinition(draft)
+    val answer = answerFor(draft, definition.type)
+    val current = answer.periodEntries.firstOrNull { it.period == period }
+      ?: QuickPlanPeriodEntry(period)
+    val entries = answer.periodEntries.filterNot { it.period == period } + update(current)
+    return putAnswer(draft, answer.copy(periodEntries = entries.sortedBy { it.period.ordinal }))
+  }
 
   private fun putAnswer(draft: QuickPlanDraft, answer: QuickPlanAnswer): QuickPlanDraft =
     draft.copy(answers = draft.answers + (answer.cardType to answer))

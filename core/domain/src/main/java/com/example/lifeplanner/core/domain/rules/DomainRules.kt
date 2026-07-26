@@ -1,14 +1,19 @@
 package com.example.lifeplanner.core.domain.rules
 
 import com.example.lifeplanner.core.domain.model.DaySchedule
+import com.example.lifeplanner.core.domain.model.DayPeriod
+import com.example.lifeplanner.core.domain.model.FoodKind
 import com.example.lifeplanner.core.domain.model.OccurrenceStatus
 import com.example.lifeplanner.core.domain.model.QuickPlanAnswer
 import com.example.lifeplanner.core.domain.model.QuickPlanCardType
 import com.example.lifeplanner.core.domain.model.QuickPlanDraft
+import com.example.lifeplanner.core.domain.model.QuickPlanPeriodEntry
 import com.example.lifeplanner.core.domain.model.RecurrenceFrequency
 import com.example.lifeplanner.core.domain.model.ScheduleBlock
 import com.example.lifeplanner.core.domain.model.ScheduleSource
 import com.example.lifeplanner.core.domain.model.StockItem
+import com.example.lifeplanner.core.domain.model.StockItemDetails
+import com.example.lifeplanner.core.domain.model.StockKind
 import com.example.lifeplanner.core.domain.model.StockLevel
 import com.example.lifeplanner.core.domain.model.Task
 import com.example.lifeplanner.core.domain.model.TaskOccurrence
@@ -127,8 +132,8 @@ object ScheduleRules {
 
 object QuickPlanGenerator {
   fun blocks(draft: QuickPlanDraft): List<ScheduleBlock> = buildList {
-    addTimeOptions(draft, QuickPlanCardType.WORK, "学习 / 工作", workWindows)
-    addTimeOptions(draft, QuickPlanCardType.GO_OUT, "出门", outingWindows)
+    addPeriodEntries(draft, QuickPlanCardType.WORK, "学习 / 工作", workWindows)
+    addPeriodEntries(draft, QuickPlanCardType.GO_OUT, "出门", outingWindows)
     addMeal(draft, QuickPlanCardType.BREAKFAST, "早餐", 7 * 60 + 30, 8 * 60)
     addMeal(draft, QuickPlanCardType.LUNCH, "午餐", 12 * 60, 13 * 60)
     addMeal(draft, QuickPlanCardType.DINNER, "晚餐", 18 * 60, 19 * 60)
@@ -147,6 +152,27 @@ object QuickPlanGenerator {
     }
   }
 
+  private fun MutableList<ScheduleBlock>.addPeriodEntries(
+    draft: QuickPlanDraft,
+    type: QuickPlanCardType,
+    fallbackTitle: String,
+    windows: Map<DayPeriod, IntRange>,
+  ) {
+    val answer = draft.answers[type] ?: return
+    answer.resolvedPeriodEntries(type, fallbackTitle).filter(QuickPlanPeriodEntry::hasActivity)
+      .forEach { entry ->
+        val range = windows[entry.period] ?: return@forEach
+        val customText = entry.customText.trim()
+        val tag = entry.tag.trim()
+        val title = customText.ifBlank { tag }.ifBlank { fallbackTitle }
+        val note = buildList {
+          if (customText.isNotBlank() && tag.isNotBlank()) add(tag)
+          if (entry.location.isNotBlank()) add(entry.location)
+        }.joinToString(" · ")
+        add(generated(draft.date, range.first, range.last + 1, title, note))
+      }
+  }
+
   private fun MutableList<ScheduleBlock>.addTimeOptions(
     draft: QuickPlanDraft,
     type: QuickPlanCardType,
@@ -160,6 +186,24 @@ object QuickPlanGenerator {
         add(generated(draft.date, range.first, range.last + 1, title, note))
       }
     }
+  }
+
+  private fun QuickPlanAnswer.resolvedPeriodEntries(
+    type: QuickPlanCardType,
+    fallbackTitle: String,
+  ): List<QuickPlanPeriodEntry> {
+    if (periodEntries.isNotEmpty()) return periodEntries
+    val legacyPeriods = selectedOptions.mapNotNull { label ->
+      legacyPeriodLabels[label]?.let { period ->
+        QuickPlanPeriodEntry(
+          period = period,
+          tag = if (type == QuickPlanCardType.GO_OUT) subSelections.firstOrNull().orEmpty() else "",
+          customText = if (type == QuickPlanCardType.WORK) fallbackTitle else "",
+          location = if (type == QuickPlanCardType.WORK) subSelections.firstOrNull().orEmpty() else "",
+        )
+      }
+    }
+    return legacyPeriods
   }
 
   private fun MutableList<ScheduleBlock>.addMeal(
@@ -192,15 +236,20 @@ object QuickPlanGenerator {
     source = ScheduleSource.QUICK_PLAN,
   )
 
+  private val legacyPeriodLabels = mapOf(
+    "早上" to DayPeriod.MORNING,
+    "下午" to DayPeriod.AFTERNOON,
+    "晚上" to DayPeriod.EVENING,
+  )
   private val workWindows = mapOf(
-    "早上" to (9 * 60 until 12 * 60),
-    "下午" to (14 * 60 until 17 * 60 + 30),
-    "晚上" to (19 * 60 until 21 * 60),
+    DayPeriod.MORNING to (9 * 60 until 12 * 60),
+    DayPeriod.AFTERNOON to (14 * 60 until 17 * 60 + 30),
+    DayPeriod.EVENING to (19 * 60 until 21 * 60),
   )
   private val outingWindows = mapOf(
-    "早上" to (9 * 60 until 11 * 60 + 30),
-    "下午" to (14 * 60 until 17 * 60),
-    "晚上" to (19 * 60 until 21 * 60),
+    DayPeriod.MORNING to (9 * 60 until 11 * 60 + 30),
+    DayPeriod.AFTERNOON to (14 * 60 until 17 * 60),
+    DayPeriod.EVENING to (19 * 60 until 21 * 60),
   )
   private val fitnessWindows = mapOf(
     "早上" to (7 * 60 until 8 * 60),
@@ -217,6 +266,24 @@ object StockRules {
         item.currentAmount <= item.replenishThreshold
     TrackingMode.STATUS -> item.currentStatus == StockLevel.MISSING || item.currentStatus == StockLevel.LOW
   }
+
+  fun availableFoods(items: List<StockItemDetails>, date: LocalDate): List<StockItemDetails> =
+    items.filter { details ->
+      val item = details.item
+      val available = when (item.trackingMode) {
+        TrackingMode.QUANTITY, TrackingMode.PERCENT -> (item.currentAmount ?: 0.0) > 0.0
+        TrackingMode.STATUS -> item.currentStatus != null && item.currentStatus != StockLevel.MISSING
+      }
+      item.kind == StockKind.FOOD &&
+        !item.isArchived &&
+        details.foodDetails != null &&
+        available &&
+        details.foodDetails.expiryDate?.isBefore(date) != true
+    }.sortedWith(
+      compareBy<StockItemDetails, LocalDate?>(nullsLast()) { it.foodDetails?.expiryDate }
+        .thenBy { if (it.foodDetails?.foodKind == FoodKind.PREPARED) 0 else 1 }
+        .thenBy { it.item.name },
+    )
 }
 
 fun TaskOccurrence.withTaskDue(task: Task): TaskOccurrence {

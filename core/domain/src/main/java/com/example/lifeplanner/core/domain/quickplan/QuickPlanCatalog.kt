@@ -4,6 +4,7 @@ import com.example.lifeplanner.core.domain.model.QuickPlanCardDefinition
 import com.example.lifeplanner.core.domain.model.QuickPlanCardType
 import com.example.lifeplanner.core.domain.model.QuickPlanFollowUp
 import com.example.lifeplanner.core.domain.model.QuickPlanInteraction
+import com.example.lifeplanner.core.domain.model.QuickPlanPeriodConfig
 
 object QuickPlanCatalog {
   private val mealOptions = listOf("自己做", "出去吃", "外卖", "不吃")
@@ -16,28 +17,19 @@ object QuickPlanCatalog {
   val cards: List<QuickPlanCardDefinition> = listOf(
     QuickPlanCardDefinition(
       type = QuickPlanCardType.WORK,
-      title = "学习 / 工作",
-      interaction = QuickPlanInteraction.MULTI_TAG,
-      options = listOf("早上", "下午", "晚上", "休息"),
-      exclusiveOption = "休息",
-      followUp = QuickPlanFollowUp(
-        title = "在哪里",
-        options = listOf("在家", "北区", "研究生部", "出差"),
-        skip = setOf("休息"),
-        enableMultiSelect = true,
+      title = "事项安排",
+      interaction = QuickPlanInteraction.PERIOD_PLAN,
+      periodConfig = QuickPlanPeriodConfig(
+        activityOptions = listOf("学习", "工作", "实验", "写作", "开会", "休息"),
+        locationOptions = listOf("在家", "北区", "研究生部", "出差"),
       ),
     ),
     QuickPlanCardDefinition(
       type = QuickPlanCardType.GO_OUT,
-      title = "出门",
-      interaction = QuickPlanInteraction.MULTI_TAG,
-      options = listOf("早上", "下午", "晚上", "不出门"),
-      exclusiveOption = "不出门",
-      followUp = QuickPlanFollowUp(
-        title = "出门做什么",
-        options = listOf("出去玩", "出去办事", "出去团建"),
-        skip = setOf("不出门"),
-        enableMultiSelect = true,
+      title = "出门安排",
+      interaction = QuickPlanInteraction.PERIOD_PLAN,
+      periodConfig = QuickPlanPeriodConfig(
+        activityOptions = listOf("出去玩", "出去办事", "出去团建"),
       ),
     ),
     QuickPlanCardDefinition(
