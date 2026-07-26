@@ -136,7 +136,6 @@ private class FakeScheduleRepository(
     endMinute: Int,
   ): Long = 0
   override suspend fun archiveBlock(id: Long) = Unit
-  override suspend fun getQuickPlanDraft(date: LocalDate): QuickPlanDraft? = null
-  override suspend fun saveQuickPlanDraft(draft: QuickPlanDraft) = Unit
-  override suspend fun applyQuickPlan(draft: QuickPlanDraft) = Unit
+  override suspend fun startQuickPlan(date: LocalDate): QuickPlanDraft = QuickPlanDraft(date)
+  override suspend fun applyQuickPlan(draft: QuickPlanDraft, baseline: QuickPlanDraft) = Unit
 }

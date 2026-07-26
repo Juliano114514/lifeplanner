@@ -53,6 +53,7 @@ import com.example.libui.components.AppEmptyState
 import com.example.libui.components.AppErrorState
 import com.example.libui.components.AppFab
 import com.example.libui.components.AppLoadingState
+import com.example.libui.components.AppScheduleEditorDialog
 import com.example.libui.components.AppSectionHeader
 import com.example.libui.components.AppStatusBadge
 import com.example.libui.components.AppStatusTone
@@ -76,6 +77,7 @@ fun TodoRoute(
   viewModel: TodoViewModel = koinViewModel(),
 ) {
   val state by viewModel.state.collectAsStateWithLifecycle()
+  var editingScheduleBlock by remember { mutableStateOf<ScheduleBlock?>(null) }
   Scaffold(
     modifier = modifier,
     topBar = { AppTopBar("任务计划") },
@@ -92,6 +94,7 @@ fun TodoRoute(
         onEditTask = onEditTask,
         onScheduleTask = onScheduleTask,
         onOpenSchedule = onOpenSchedule,
+        onEditSchedule = { editingScheduleBlock = it },
         onToggleComplete = { item ->
           item.occurrence?.let {
             val next = if (it.status == OccurrenceStatus.COMPLETED) {
@@ -111,6 +114,27 @@ fun TodoRoute(
       )
     }
   }
+
+  editingScheduleBlock?.let { block ->
+    AppScheduleEditorDialog(
+      dialogTitle = "编辑日程",
+      initialTitle = block.title,
+      initialNote = block.note,
+      initialStartMinute = block.startMinute,
+      initialEndMinute = block.endMinute,
+      detailsEditable = block.taskOccurrenceId == null,
+      lockedDetailsMessage = "任务标题和备注请在任务中修改，此处可调整安排时间。",
+      onDismiss = { editingScheduleBlock = null },
+      onSave = { title, note, start, end ->
+        viewModel.updateScheduleBlock(block, title, note, start, end)
+        editingScheduleBlock = null
+      },
+      onDelete = {
+        viewModel.archiveScheduleBlock(block.id)
+        editingScheduleBlock = null
+      },
+    )
+  }
 }
 
 @Composable
@@ -119,6 +143,7 @@ private fun TodoContent(
   onEditTask: (Long) -> Unit,
   onScheduleTask: (Long) -> Unit,
   onOpenSchedule: (Long) -> Unit,
+  onEditSchedule: (ScheduleBlock) -> Unit,
   onToggleComplete: (TodoItem) -> Unit,
   onTogglePin: (TodoItem) -> Unit,
   onSkip: (TodoItem) -> Unit,
@@ -145,7 +170,7 @@ private fun TodoContent(
     verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
   ) {
     todoSection("置顶 / 临近 DDL", overview.urgent, true, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
-    scheduleSection(state.daySchedule.blocks, onOpenSchedule)
+    scheduleSection(state.daySchedule.blocks, onOpenSchedule, onEditSchedule)
     todoSection("今日未完成", overview.todayPending, false, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
     todoSection("今日已完成", overview.todayCompleted, false, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
     todoSection("其他任务", overview.others, false, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
@@ -155,6 +180,7 @@ private fun TodoContent(
 private fun androidx.compose.foundation.lazy.LazyListScope.scheduleSection(
   blocks: List<ScheduleBlock>,
   onOpenSchedule: (Long) -> Unit,
+  onEditSchedule: (ScheduleBlock) -> Unit,
 ) {
   if (blocks.isEmpty()) return
   item(key = "header-today-schedule") {
@@ -165,7 +191,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.scheduleSection(
     )
   }
   items(blocks, key = { "schedule-${it.id}" }) { block ->
-    TodayScheduleCard(block, onOpenSchedule)
+    TodayScheduleCard(block, onOpenSchedule, onEditSchedule)
   }
 }
 
@@ -173,9 +199,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.scheduleSection(
 private fun TodayScheduleCard(
   block: ScheduleBlock,
   onOpenSchedule: (Long) -> Unit,
+  onEditSchedule: (ScheduleBlock) -> Unit,
 ) {
   AppCard(
     onClick = { onOpenSchedule(block.date.toEpochDay()) },
+    onLongClick = { onEditSchedule(block) },
     modifier = Modifier
       .fillMaxWidth()
       .testTag("today-schedule-${block.id}"),

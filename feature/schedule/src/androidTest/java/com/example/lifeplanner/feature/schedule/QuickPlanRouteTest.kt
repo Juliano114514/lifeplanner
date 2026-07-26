@@ -1,6 +1,8 @@
 package com.example.lifeplanner.feature.schedule
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.example.lifeplanner.core.domain.model.DaySchedule
@@ -33,6 +35,32 @@ class QuickPlanRouteTest {
   val composeRule = createComposeRule()
 
   @Test
+  fun outingPeriodsDefaultToNotGoingOutAndExpandIndependently() {
+    val date = LocalDate.of(2026, 7, 27)
+    val viewModel = QuickPlanViewModel(
+      FakeScheduleRepository(QuickPlanDraft(date)),
+      FakeStockRepository(emptyList()),
+    )
+
+    composeRule.setContent {
+      LifePlannerTheme {
+        QuickPlanRoute(date.toEpochDay(), onDone = {}, viewModel = viewModel)
+      }
+    }
+    composeRule.waitUntil { !viewModel.state.value.isLoading }
+    composeRule.onNodeWithText("下一张").performClick()
+    composeRule.waitForIdle()
+
+    composeRule.onAllNodesWithText("不出门").assertCountEquals(3)
+    composeRule.onAllNodesWithText("出去玩").assertCountEquals(0)
+
+    composeRule.onAllNodesWithText("出门")[0].performClick()
+    composeRule.waitForIdle()
+
+    composeRule.onAllNodesWithText("出去玩").assertCountEquals(1)
+  }
+
+  @Test
   fun availableFoodCardsOnlyShowForHomeCooking() {
     val date = LocalDate.of(2026, 7, 28)
     val breakfastIndex = QuickPlanCatalog.cards.indexOfFirst {
@@ -59,6 +87,10 @@ class QuickPlanRouteTest {
       }
     }
     composeRule.waitUntil { !viewModel.state.value.isLoading }
+    repeat(2) {
+      composeRule.onNodeWithText("下一张").performClick()
+      composeRule.waitForIdle()
+    }
 
     composeRule.onNodeWithText("家里现有").assertExists()
     composeRule.onNodeWithText("番茄").assertExists()
@@ -105,9 +137,8 @@ private class FakeScheduleRepository(
     endMinute: Int,
   ): Long = 0
   override suspend fun archiveBlock(id: Long) = Unit
-  override suspend fun getQuickPlanDraft(date: LocalDate): QuickPlanDraft = draft
-  override suspend fun saveQuickPlanDraft(draft: QuickPlanDraft) = Unit
-  override suspend fun applyQuickPlan(draft: QuickPlanDraft) = Unit
+  override suspend fun startQuickPlan(date: LocalDate): QuickPlanDraft = draft
+  override suspend fun applyQuickPlan(draft: QuickPlanDraft, baseline: QuickPlanDraft) = Unit
 }
 
 private class FakeStockRepository(

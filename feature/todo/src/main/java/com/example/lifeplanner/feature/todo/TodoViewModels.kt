@@ -6,6 +6,8 @@ import com.example.lifeplanner.core.domain.model.OccurrenceStatus
 import com.example.lifeplanner.core.domain.model.DaySchedule
 import com.example.lifeplanner.core.domain.model.RecurrenceFrequency
 import com.example.lifeplanner.core.domain.model.RecurrenceRule
+import com.example.lifeplanner.core.domain.model.ScheduleBlock
+import com.example.lifeplanner.core.domain.model.ScheduleBlockDraft
 import com.example.lifeplanner.core.domain.model.Task
 import com.example.lifeplanner.core.domain.model.TaskDraft
 import com.example.lifeplanner.core.domain.model.TodoOverview
@@ -66,6 +68,32 @@ class TodoViewModel(
 
   fun archive(taskId: Long) {
     viewModelScope.launch { repository.archiveTask(taskId) }
+  }
+
+  fun updateScheduleBlock(
+    block: ScheduleBlock,
+    title: String,
+    note: String,
+    startMinute: Int,
+    endMinute: Int,
+  ) {
+    viewModelScope.launch {
+      scheduleRepository.saveBlock(
+        ScheduleBlockDraft(
+          id = block.id,
+          date = block.date,
+          startMinute = startMinute,
+          endMinute = endMinute,
+          title = title,
+          note = note,
+          taskOccurrenceId = block.taskOccurrenceId,
+        ),
+      )
+    }
+  }
+
+  fun archiveScheduleBlock(id: Long) {
+    viewModelScope.launch { scheduleRepository.archiveBlock(id) }
   }
 }
 

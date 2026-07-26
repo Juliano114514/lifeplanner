@@ -35,7 +35,7 @@ import com.example.lifeplanner.core.database.entity.TaskOccurrenceEntity
     StockSnapshotEntity::class,
     ShoppingEntryEntity::class,
   ],
-  version = 4,
+  version = 6,
   exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -55,7 +55,7 @@ abstract class AppDatabase : RoomDatabase() {
           context.applicationContext,
           AppDatabase::class.java,
           "lifeplanner.db",
-        ).addMigrations(MIGRATION_3_4)
+        ).addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
           .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2)
           .build()
           .also { instance = it }
@@ -84,6 +84,35 @@ abstract class AppDatabase : RoomDatabase() {
           """
           CREATE INDEX IF NOT EXISTS `index_quick_plan_period_entry_draft_date_card_type`
           ON `quick_plan_period_entry` (`draft_date`, `card_type`)
+          """.trimIndent(),
+        )
+      }
+    }
+
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+          "ALTER TABLE `schedule_block` ADD COLUMN `quick_plan_card_type` TEXT",
+        )
+        db.execSQL(
+          "ALTER TABLE `schedule_block` ADD COLUMN `quick_plan_entry_key` TEXT",
+        )
+        db.execSQL(
+          """
+          CREATE INDEX IF NOT EXISTS
+            `index_schedule_block_date_quick_plan_card_type_quick_plan_entry_key`
+          ON `schedule_block` (`date`, `quick_plan_card_type`, `quick_plan_entry_key`)
+          """.trimIndent(),
+        )
+      }
+    }
+
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+          """
+          ALTER TABLE `quick_plan_period_entry`
+          ADD COLUMN `is_included` INTEGER NOT NULL DEFAULT 1
           """.trimIndent(),
         )
       }

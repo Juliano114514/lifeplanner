@@ -73,13 +73,7 @@ fun LifePlannerApp(
           topLevels.forEach { item ->
             NavigationBarItem(
               selected = item.selected(destination),
-              onClick = {
-                navController.navigate(item.route) {
-                  popUpTo<TodoRoute> { saveState = true }
-                  launchSingleTop = true
-                  restoreState = true
-                }
-              },
+              onClick = { navController.navigateTopLevel(item.route) },
               icon = { Icon(item.icon, contentDescription = item.label) },
               label = { Text(item.label) },
               colors = NavigationBarItemDefaults.colors(
@@ -159,7 +153,7 @@ fun LifePlannerApp(
           onAddTask = { navController.navigate(TaskEditorRoute()) },
           onEditTask = { navController.navigate(TaskEditorRoute(it)) },
           onScheduleTask = {
-            navController.navigate(
+            navController.navigateTopLevel(
               ScheduleRoute(
                 epochDay = LocalDate.now().toEpochDay(),
                 taskOccurrenceId = it,
@@ -167,7 +161,7 @@ fun LifePlannerApp(
             )
           },
           onOpenSchedule = { epochDay ->
-            navController.navigate(ScheduleRoute(epochDay = epochDay))
+            navController.navigateTopLevel(ScheduleRoute(epochDay = epochDay))
           },
         )
       }
@@ -217,6 +211,13 @@ fun LifePlannerApp(
         ShoppingListScreen(onDone = navController::popBackStack)
       }
     }
+  }
+}
+
+private fun NavHostController.navigateTopLevel(route: Any) {
+  navigate(route) {
+    popUpTo<TodoRoute>()
+    launchSingleTop = true
   }
 }
 

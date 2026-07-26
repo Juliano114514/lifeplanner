@@ -19,7 +19,9 @@ import com.example.lifeplanner.core.domain.repository.TaskRepository
 import com.example.lifeplanner.core.domain.repository.StockRepository
 import com.example.lifeplanner.core.domain.rules.StockRules
 import java.time.LocalDate
-import java.time.YearMonth
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -31,11 +33,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 data class ScheduleUiState(
   val selectedDate: LocalDate = LocalDate.now(),
-  val visibleMonth: YearMonth = YearMonth.now(),
   val daySchedule: DaySchedule = DaySchedule(LocalDate.now()),
   val schedulable: List<TodoItem> = emptyList(),
   val isLoading: Boolean = true,
@@ -63,7 +63,6 @@ class ScheduleViewModel(
         _state.update {
           it.copy(
             selectedDate = date,
-            visibleMonth = YearMonth.from(date),
             daySchedule = schedule,
             schedulable = tasks,
             isLoading = false,
@@ -81,11 +80,6 @@ class ScheduleViewModel(
 
   fun selectDate(date: LocalDate) {
     selectedDate.value = date
-  }
-
-  fun changeMonth(delta: Long) {
-    val target = _state.value.visibleMonth.plusMonths(delta)
-    selectDate(target.atDay(1))
   }
 
   fun saveBlock(
@@ -161,7 +155,8 @@ class QuickPlanViewModel(
   val state: StateFlow<QuickPlanUiState> = _state.asStateFlow()
   private val _effect = MutableSharedFlow<QuickPlanEffect>()
   val effect: SharedFlow<QuickPlanEffect> = _effect.asSharedFlow()
-  private var loadedDate: LocalDate? = null
+  private var baselineDraft: QuickPlanDraft? = null
+  private var loadJob: Job? = null
   private var latestFoods: List<StockItemDetails> = emptyList()
 
   init {
@@ -181,15 +176,24 @@ class QuickPlanViewModel(
 
   fun load(epochDay: Long) {
     val date = LocalDate.ofEpochDay(epochDay)
-    if (loadedDate == date) return
-    loadedDate = date
-    viewModelScope.launch {
-      val draft = repository.getQuickPlanDraft(date) ?: QuickPlanReducer.newDraft(date)
-      _state.value = QuickPlanUiState(
-        isLoading = false,
-        draft = draft,
-        availableFoods = StockRules.availableFoods(latestFoods, date),
-      )
+    loadJob?.cancel()
+    baselineDraft = null
+    _state.update { it.copy(isLoading = true, errorMessage = null) }
+    loadJob = viewModelScope.launch {
+      try {
+        val restored = repository.startQuickPlan(date)
+        val draft = restored.copy(currentIndex = 0, completedAt = null)
+        baselineDraft = draft
+        _state.value = QuickPlanUiState(
+          isLoading = false,
+          draft = draft,
+          availableFoods = StockRules.availableFoods(latestFoods, date),
+        )
+      } catch (error: CancellationException) {
+        throw error
+      } catch (error: Throwable) {
+        _state.update { it.copy(isLoading = false, errorMessage = error.message) }
+      }
     }
   }
 
@@ -198,6 +202,8 @@ class QuickPlanViewModel(
   fun toggleFollowUp(label: String) = reduce { QuickPlanReducer.toggleFollowUp(it, label) }
   fun setHour(hour: Int) = reduce { QuickPlanReducer.setHour(it, hour) }
   fun setNote(note: String) = reduce { QuickPlanReducer.setNote(it, note) }
+  fun setPeriodIncluded(period: DayPeriod, isIncluded: Boolean) =
+    reduce { QuickPlanReducer.setPeriodIncluded(it, period, isIncluded) }
   fun setPeriodTag(period: DayPeriod, tag: String) =
     reduce { QuickPlanReducer.setPeriodTag(it, period, tag) }
   fun setPeriodText(period: DayPeriod, text: String) =
@@ -210,8 +216,9 @@ class QuickPlanViewModel(
   fun next() = reduce { QuickPlanReducer.next(it) }
 
   fun complete() {
+    val baseline = baselineDraft ?: return
     viewModelScope.launch {
-      runCatching { repository.applyQuickPlan(_state.value.draft) }
+      runCatching { repository.applyQuickPlan(_state.value.draft, baseline) }
         .onSuccess { _effect.emit(QuickPlanEffect.Completed) }
         .onFailure { error -> _state.update { it.copy(errorMessage = error.message) } }
     }
@@ -220,6 +227,5 @@ class QuickPlanViewModel(
   private fun reduce(block: (QuickPlanDraft) -> QuickPlanDraft) {
     val draft = block(_state.value.draft)
     _state.update { it.copy(draft = draft) }
-    viewModelScope.launch { repository.saveQuickPlanDraft(draft) }
   }
 }

@@ -18,6 +18,7 @@ import com.example.lifeplanner.core.domain.model.OccurrenceStatus
 import com.example.lifeplanner.core.domain.model.QuickPlanAnswer
 import com.example.lifeplanner.core.domain.model.QuickPlanCardType
 import com.example.lifeplanner.core.domain.model.QuickPlanDraft
+import com.example.lifeplanner.core.domain.model.QuickPlanEntryRef
 import com.example.lifeplanner.core.domain.model.QuickPlanPeriodEntry
 import com.example.lifeplanner.core.domain.model.RecurrenceFrequency
 import com.example.lifeplanner.core.domain.model.RecurrenceRule
@@ -80,6 +81,11 @@ internal fun ScheduleBlockEntity.toDomain(taskStatus: OccurrenceStatus? = null):
     source = ScheduleSource.valueOf(source),
     isUserModified = isUserModified,
     isArchived = isArchived,
+    quickPlanEntryRef = quickPlanCardType?.let { cardType ->
+      quickPlanEntryKey?.let { entryKey ->
+        QuickPlanEntryRef(QuickPlanCardType.valueOf(cardType), entryKey)
+      }
+    },
   )
 
 internal fun QuickPlanAnswerEntity.toDomain(
@@ -175,6 +181,7 @@ internal fun QuickPlanPeriodEntry.toEntity(
   draftDate = date.toString(),
   cardType = cardType.name,
   period = period.name,
+  isIncluded = isIncluded,
   tag = tag,
   customText = customText,
   location = location,
@@ -183,6 +190,7 @@ internal fun QuickPlanPeriodEntry.toEntity(
 private fun QuickPlanPeriodEntryEntity.toDomain(): QuickPlanPeriodEntry =
   QuickPlanPeriodEntry(
     period = DayPeriod.valueOf(period),
+    isIncluded = isIncluded,
     tag = tag,
     customText = customText,
     location = location,

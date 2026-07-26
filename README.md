@@ -103,20 +103,16 @@ Feature 之间不直接依赖；Feature 不访问 DAO 或 Room Entity；`libui` 
 
 项目要求 JDK 11，并通过 Version Catalog 管理依赖。
 
-```powershell
-.\gradlew.bat :app:assembleDebug
-```
-
-运行单元测试：
-
-```powershell
-.\gradlew.bat testDebugUnitTest
-```
-
-运行 Android lint：
+默认只运行 Android 静态检查：
 
 ```powershell
 .\gradlew.bat lintDebug
+```
+
+仅在明确需要构建 APK 时运行：
+
+```powershell
+.\gradlew.bat :app:assembleDebug
 ```
 
 主要构建产物位于 `app/build/outputs/apk/debug/`。

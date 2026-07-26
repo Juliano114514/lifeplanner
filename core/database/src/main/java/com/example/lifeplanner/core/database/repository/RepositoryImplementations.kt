@@ -21,7 +21,9 @@ import com.example.lifeplanner.core.database.mapper.toEpochMillis
 import com.example.lifeplanner.core.domain.model.DaySchedule
 import com.example.lifeplanner.core.domain.model.FoodDetails
 import com.example.lifeplanner.core.domain.model.OccurrenceStatus
+import com.example.lifeplanner.core.domain.model.QuickPlanCardType
 import com.example.lifeplanner.core.domain.model.QuickPlanDraft
+import com.example.lifeplanner.core.domain.model.QuickPlanEntryRef
 import com.example.lifeplanner.core.domain.model.ScheduleBlock
 import com.example.lifeplanner.core.domain.model.ScheduleBlockDraft
 import com.example.lifeplanner.core.domain.model.ScheduleSource
@@ -44,6 +46,7 @@ import com.example.lifeplanner.core.domain.repository.ShoppingRepository
 import com.example.lifeplanner.core.domain.repository.StockRepository
 import com.example.lifeplanner.core.domain.repository.TaskRepository
 import com.example.lifeplanner.core.domain.rules.QuickPlanGenerator
+import com.example.lifeplanner.core.domain.rules.QuickPlanReconciler
 import com.example.lifeplanner.core.domain.rules.RecurrenceGenerator
 import com.example.lifeplanner.core.domain.rules.ScheduleRules
 import com.example.lifeplanner.core.domain.rules.StockRules
@@ -185,6 +188,8 @@ class ScheduleRepositoryImpl(
       source = existing?.source ?: ScheduleSource.MANUAL.name,
       isUserModified = existing != null,
       isArchived = false,
+      quickPlanCardType = existing?.quickPlanCardType,
+      quickPlanEntryKey = existing?.quickPlanEntryKey,
     )
     return if (existing == null) scheduleDao.insertBlock(entity) else {
       scheduleDao.updateBlock(entity)
@@ -224,7 +229,62 @@ class ScheduleRepositoryImpl(
 
   override suspend fun archiveBlock(id: Long) = scheduleDao.archiveBlock(id)
 
-  override suspend fun getQuickPlanDraft(date: LocalDate): QuickPlanDraft? {
+  override suspend fun startQuickPlan(date: LocalDate): QuickPlanDraft =
+    database.withTransaction {
+      val saved = loadQuickPlanDraft(date) ?: QuickPlanDraft(date)
+      linkLegacyQuickPlanBlocks(saved)
+      val linked = scheduleDao.getActiveQuickPlanBlocks(date.toString())
+        .map { it.toDomain() }
+        .filter { it.quickPlanEntryRef != null }
+      QuickPlanReconciler.withLinkedEntries(saved, linked)
+    }
+
+  override suspend fun applyQuickPlan(
+    draft: QuickPlanDraft,
+    baseline: QuickPlanDraft,
+  ) {
+    require(draft.date == baseline.date) { "快速向导基线日期不一致" }
+    database.withTransaction {
+      linkLegacyQuickPlanBlocks(baseline)
+      val existing = scheduleDao.getActiveQuickPlanBlocks(draft.date.toString())
+        .filter { it.quickPlanEntryRef() != null }
+      val baselineByRef = QuickPlanGenerator.blocks(baseline)
+        .associateBy { requireNotNull(it.quickPlanEntryRef) }
+      val desiredByRef = QuickPlanGenerator.blocks(draft)
+        .associateBy { requireNotNull(it.quickPlanEntryRef) }
+      val existingByRef = existing.groupBy { requireNotNull(it.quickPlanEntryRef()) }
+        .mapValues { (_, entries) ->
+          entries.drop(1).forEach { scheduleDao.archiveBlock(it.id) }
+          entries.first()
+        }
+
+      existingByRef.filterKeys { it !in desiredByRef }.values.forEach {
+        scheduleDao.archiveBlock(it.id)
+      }
+      desiredByRef.forEach { (ref, desired) ->
+        val current = existingByRef[ref]
+        if (current == null) {
+          scheduleDao.insertBlock(desired.toQuickPlanEntity())
+        } else {
+          scheduleDao.updateBlock(
+            mergeQuickPlanBlock(
+              current = current,
+              baseline = baselineByRef[ref],
+              desired = desired,
+            ),
+          )
+        }
+      }
+      saveQuickPlanDraft(
+        draft.copy(
+          currentIndex = 0,
+          completedAt = System.currentTimeMillis(),
+        ),
+      )
+    }
+  }
+
+  private suspend fun loadQuickPlanDraft(date: LocalDate): QuickPlanDraft? {
     val draft = quickPlanDao.getDraft(date.toString()) ?: return null
     return draft.toDomain(
       answers = quickPlanDao.getAnswers(date.toString()),
@@ -232,41 +292,111 @@ class ScheduleRepositoryImpl(
     )
   }
 
-  override suspend fun saveQuickPlanDraft(draft: QuickPlanDraft) {
-    database.withTransaction {
-      quickPlanDao.upsertDraft(
-        QuickPlanDraftEntity(draft.date.toString(), draft.currentIndex, draft.completedAt),
-      )
-      quickPlanDao.deleteAnswers(draft.date.toString())
-      val answers = draft.answers.values.map { it.toEntity(draft.date) }
-      if (answers.isNotEmpty()) quickPlanDao.upsertAnswers(answers)
-      val periodEntries = draft.answers.values.flatMap { answer ->
-        answer.periodEntries.map { it.toEntity(draft.date, answer.cardType) }
+  private suspend fun saveQuickPlanDraft(draft: QuickPlanDraft) {
+    quickPlanDao.upsertDraft(
+      QuickPlanDraftEntity(draft.date.toString(), draft.currentIndex, draft.completedAt),
+    )
+    quickPlanDao.deleteAnswers(draft.date.toString())
+    val answers = draft.answers.values.map { it.toEntity(draft.date) }
+    if (answers.isNotEmpty()) quickPlanDao.upsertAnswers(answers)
+    val periodEntries = draft.answers.values.flatMap { answer ->
+      answer.periodEntries.map { it.toEntity(draft.date, answer.cardType) }
+    }
+    if (periodEntries.isNotEmpty()) quickPlanDao.upsertPeriodEntries(periodEntries)
+  }
+
+  private suspend fun linkLegacyQuickPlanBlocks(draft: QuickPlanDraft) {
+    val active = scheduleDao.getActiveQuickPlanBlocks(draft.date.toString())
+    val legacy = active.filter { it.quickPlanEntryRef() == null }
+    if (legacy.isEmpty()) return
+
+    val usedRefs = active.mapNotNull { it.quickPlanEntryRef() }.toMutableSet()
+    val candidates = QuickPlanGenerator.blocks(draft).filter {
+      it.quickPlanEntryRef !in usedRefs
+    }.toMutableList()
+    legacy.forEach { entity ->
+      val matchIndex = candidates.indexOfFirst { it.hasSameVisibleFields(entity) }
+      if (matchIndex >= 0) {
+        val ref = requireNotNull(candidates.removeAt(matchIndex).quickPlanEntryRef)
+        usedRefs += ref
+        scheduleDao.updateBlock(
+          entity.copy(
+            quickPlanCardType = ref.cardType.name,
+            quickPlanEntryKey = ref.slotKey,
+          ),
+        )
+      } else {
+        scheduleDao.updateBlock(
+          entity.copy(
+            source = ScheduleSource.MANUAL.name,
+            isUserModified = true,
+          ),
+        )
       }
-      if (periodEntries.isNotEmpty()) quickPlanDao.upsertPeriodEntries(periodEntries)
     }
   }
 
-  override suspend fun applyQuickPlan(draft: QuickPlanDraft) {
-    database.withTransaction {
-      saveQuickPlanDraft(draft.copy(completedAt = System.currentTimeMillis()))
-      scheduleDao.deleteReplaceableQuickPlanBlocks(draft.date.toString())
-      val blocks = QuickPlanGenerator.blocks(draft).map { block ->
-        ScheduleBlockEntity(
-          date = block.date.toString(),
-          startMinute = block.startMinute,
-          endMinute = block.endMinute,
-          title = block.title,
-          note = block.note,
-          taskOccurrenceId = null,
-          source = ScheduleSource.QUICK_PLAN.name,
-          isUserModified = false,
-          isArchived = false,
+  private fun mergeQuickPlanBlock(
+    current: ScheduleBlockEntity,
+    baseline: ScheduleBlock?,
+    desired: ScheduleBlock,
+  ): ScheduleBlockEntity {
+    val startMinute = preserveOverride(current.startMinute, baseline?.startMinute, desired.startMinute)
+    val endMinute = preserveOverride(current.endMinute, baseline?.endMinute, desired.endMinute)
+    val title = preserveOverride(current.title, baseline?.title, desired.title)
+    val note = preserveOverride(current.note, baseline?.note, desired.note)
+    return current.copy(
+      date = desired.date.toString(),
+      startMinute = startMinute,
+      endMinute = endMinute,
+      title = title,
+      note = note,
+      source = ScheduleSource.QUICK_PLAN.name,
+      isUserModified = startMinute != desired.startMinute ||
+        endMinute != desired.endMinute ||
+        title != desired.title ||
+        note != desired.note,
+      isArchived = false,
+      quickPlanCardType = desired.quickPlanEntryRef?.cardType?.name,
+      quickPlanEntryKey = desired.quickPlanEntryRef?.slotKey,
+    )
+  }
+
+  private fun ScheduleBlock.toQuickPlanEntity(): ScheduleBlockEntity {
+    val ref = requireNotNull(quickPlanEntryRef)
+    return ScheduleBlockEntity(
+      date = date.toString(),
+      startMinute = startMinute,
+      endMinute = endMinute,
+      title = title,
+      note = note,
+      taskOccurrenceId = null,
+      source = ScheduleSource.QUICK_PLAN.name,
+      isUserModified = false,
+      isArchived = false,
+      quickPlanCardType = ref.cardType.name,
+      quickPlanEntryKey = ref.slotKey,
+    )
+  }
+
+  private fun ScheduleBlockEntity.quickPlanEntryRef(): QuickPlanEntryRef? =
+    quickPlanCardType?.let { cardType ->
+      quickPlanEntryKey?.let { entryKey ->
+        QuickPlanEntryRef(
+          cardType = QuickPlanCardType.valueOf(cardType),
+          slotKey = entryKey,
         )
       }
-      if (blocks.isNotEmpty()) scheduleDao.insertBlocks(blocks)
     }
-  }
+
+  private fun ScheduleBlock.hasSameVisibleFields(entity: ScheduleBlockEntity): Boolean =
+    startMinute == entity.startMinute &&
+      endMinute == entity.endMinute &&
+      title == entity.title &&
+      note == entity.note
+
+  private fun <T> preserveOverride(current: T, baseline: T?, desired: T): T =
+    if (baseline == null || current != baseline) current else desired
 }
 
 class StockRepositoryImpl(

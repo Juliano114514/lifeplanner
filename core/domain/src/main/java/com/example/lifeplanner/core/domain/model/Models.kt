@@ -47,6 +47,11 @@ data class TodoOverview(
 
 enum class ScheduleSource { MANUAL, QUICK_PLAN }
 
+data class QuickPlanEntryRef(
+  val cardType: QuickPlanCardType,
+  val slotKey: String,
+)
+
 data class ScheduleBlock(
   val id: Long = 0,
   val date: LocalDate,
@@ -59,6 +64,7 @@ data class ScheduleBlock(
   val source: ScheduleSource = ScheduleSource.MANUAL,
   val isUserModified: Boolean = false,
   val isArchived: Boolean = false,
+  val quickPlanEntryRef: QuickPlanEntryRef? = null,
 )
 
 data class DaySchedule(
@@ -82,6 +88,7 @@ enum class DayPeriod { MORNING, AFTERNOON, EVENING }
 
 data class QuickPlanPeriodEntry(
   val period: DayPeriod,
+  val isIncluded: Boolean = true,
   val tag: String = "",
   val customText: String = "",
   val location: String = "",

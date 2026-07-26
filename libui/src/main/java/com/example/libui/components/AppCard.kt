@@ -1,6 +1,7 @@
 package com.example.libui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,6 +24,7 @@ enum class AppCardStyle {
 fun AppCard(
   modifier: Modifier = Modifier,
   onClick: (() -> Unit)? = null,
+  onLongClick: (() -> Unit)? = null,
   enabled: Boolean = true,
   style: AppCardStyle = AppCardStyle.Default,
   contentPadding: PaddingValues = PaddingValues(AppSpacing.lg),
@@ -43,7 +45,20 @@ fun AppCard(
     Column(Modifier.padding(contentPadding), content = content)
   }
 
-  if (onClick == null) {
+  if (onLongClick != null) {
+    Surface(
+      modifier = modifier.combinedClickable(
+        enabled = enabled,
+        onClick = onClick ?: {},
+        onLongClick = onLongClick,
+      ),
+      shape = MaterialTheme.shapes.large,
+      color = color,
+      contentColor = scheme.onSurface,
+      border = BorderStroke(AppStroke.default, borderColor),
+      content = body,
+    )
+  } else if (onClick == null) {
     Surface(
       modifier = modifier,
       shape = MaterialTheme.shapes.large,

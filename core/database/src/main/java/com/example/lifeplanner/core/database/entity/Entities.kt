@@ -56,7 +56,11 @@ data class TaskOccurrenceEntity(
       onDelete = ForeignKey.SET_NULL,
     ),
   ],
-  indices = [Index("date"), Index("task_occurrence_id")],
+  indices = [
+    Index("date"),
+    Index("task_occurrence_id"),
+    Index(value = ["date", "quick_plan_card_type", "quick_plan_entry_key"]),
+  ],
 )
 data class ScheduleBlockEntity(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -69,6 +73,8 @@ data class ScheduleBlockEntity(
   val source: String,
   @ColumnInfo(name = "is_user_modified") val isUserModified: Boolean,
   @ColumnInfo(name = "is_archived") val isArchived: Boolean,
+  @ColumnInfo(name = "quick_plan_card_type") val quickPlanCardType: String? = null,
+  @ColumnInfo(name = "quick_plan_entry_key") val quickPlanEntryKey: String? = null,
 )
 
 data class ScheduleBlockRow(
@@ -123,6 +129,7 @@ data class QuickPlanPeriodEntryEntity(
   @ColumnInfo(name = "draft_date") val draftDate: String,
   @ColumnInfo(name = "card_type") val cardType: String,
   val period: String,
+  @ColumnInfo(name = "is_included", defaultValue = "1") val isIncluded: Boolean = true,
   val tag: String,
   @ColumnInfo(name = "custom_text") val customText: String,
   val location: String,

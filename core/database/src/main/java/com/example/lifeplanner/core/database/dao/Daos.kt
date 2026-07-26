@@ -107,11 +107,12 @@ interface ScheduleDao {
 
   @Query(
     """
-    DELETE FROM schedule_block
-    WHERE date = :date AND source = 'QUICK_PLAN' AND is_user_modified = 0
+    SELECT * FROM schedule_block
+    WHERE date = :date AND source = 'QUICK_PLAN' AND is_archived = 0
+    ORDER BY id
     """,
   )
-  suspend fun deleteReplaceableQuickPlanBlocks(date: String)
+  suspend fun getActiveQuickPlanBlocks(date: String): List<ScheduleBlockEntity>
 }
 
 @Dao

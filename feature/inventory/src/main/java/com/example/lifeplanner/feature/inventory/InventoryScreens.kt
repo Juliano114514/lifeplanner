@@ -198,7 +198,7 @@ fun StockEditorRoute(
   var name by remember(details?.item?.id) { mutableStateOf(details?.item?.name.orEmpty()) }
   var category by remember(details?.item?.id) { mutableStateOf(details?.item?.category.orEmpty()) }
   var unit by remember(details?.item?.id) { mutableStateOf(details?.item?.unit.orEmpty()) }
-  var mode by remember(details?.item?.id) { mutableStateOf(details?.item?.trackingMode ?: TrackingMode.QUANTITY) }
+  var mode by remember(details?.item?.id) { mutableStateOf(details?.item?.trackingMode ?: TrackingMode.STATUS) }
   var amount by remember(details?.item?.id) { mutableStateOf(details?.item?.currentAmount?.toString() ?: "0") }
   var threshold by remember(details?.item?.id) { mutableStateOf(details?.item?.replenishThreshold?.toString() ?: "0") }
   var status by remember(details?.item?.id) { mutableStateOf(details?.item?.currentStatus ?: StockLevel.ENOUGH) }

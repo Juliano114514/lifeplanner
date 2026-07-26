@@ -40,9 +40,8 @@ interface ScheduleRepository {
     endMinute: Int,
   ): Long
   suspend fun archiveBlock(id: Long)
-  suspend fun getQuickPlanDraft(date: LocalDate): QuickPlanDraft?
-  suspend fun saveQuickPlanDraft(draft: QuickPlanDraft)
-  suspend fun applyQuickPlan(draft: QuickPlanDraft)
+  suspend fun startQuickPlan(date: LocalDate): QuickPlanDraft
+  suspend fun applyQuickPlan(draft: QuickPlanDraft, baseline: QuickPlanDraft)
 }
 
 interface StockRepository {

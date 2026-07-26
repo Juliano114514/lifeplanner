@@ -22,6 +22,7 @@ import com.example.lifeplanner.core.domain.quickplan.QuickPlanReducer
 import java.time.LocalDate
 import java.time.LocalDateTime
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -171,6 +172,62 @@ class DomainRulesTest {
     assertEquals(2, blocks.size)
     assertTrue(blocks[0].startMinute < blocks[1].endMinute)
     assertTrue(blocks[1].startMinute < blocks[0].endMinute)
+  }
+
+  @Test
+  fun quickPlanDoesNotGenerateDisabledOutingPeriod() {
+    val date = LocalDate.of(2026, 7, 27)
+    val draft = QuickPlanDraft(
+      date = date,
+      answers = mapOf(
+        QuickPlanCardType.GO_OUT to QuickPlanAnswer(
+          QuickPlanCardType.GO_OUT,
+          periodEntries = listOf(
+            QuickPlanPeriodEntry(
+              period = DayPeriod.MORNING,
+              isIncluded = false,
+              tag = "出去办事",
+            ),
+            QuickPlanPeriodEntry(
+              period = DayPeriod.AFTERNOON,
+              tag = "出去玩",
+            ),
+          ),
+        ),
+      ),
+    )
+
+    val blocks = QuickPlanGenerator.blocks(draft)
+
+    assertEquals(listOf("出去玩"), blocks.map(ScheduleBlock::title))
+    assertFalse(blocks.any { it.startMinute < 12 * 60 })
+  }
+
+  @Test
+  fun quickPlanReconcilePreservesExplicitNotGoingOutChoice() {
+    val date = LocalDate.of(2026, 7, 27)
+    val draft = QuickPlanDraft(
+      date = date,
+      answers = mapOf(
+        QuickPlanCardType.GO_OUT to QuickPlanAnswer(
+          QuickPlanCardType.GO_OUT,
+          periodEntries = listOf(
+            QuickPlanPeriodEntry(
+              period = DayPeriod.MORNING,
+              isIncluded = false,
+              tag = "出去办事",
+            ),
+          ),
+        ),
+      ),
+    )
+
+    val restored = QuickPlanReconciler.withLinkedEntries(draft, emptyList())
+      .answers.getValue(QuickPlanCardType.GO_OUT)
+      .periodEntries.single()
+
+    assertFalse(restored.isIncluded)
+    assertEquals("出去办事", restored.tag)
   }
 
   @Test

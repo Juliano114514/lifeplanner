@@ -52,6 +52,13 @@ object QuickPlanReducer {
   fun setNote(draft: QuickPlanDraft, note: String): QuickPlanDraft =
     putAnswer(draft, answerFor(draft, currentDefinition(draft).type).copy(note = note))
 
+  fun setPeriodIncluded(
+    draft: QuickPlanDraft,
+    period: DayPeriod,
+    isIncluded: Boolean,
+  ): QuickPlanDraft =
+    updatePeriod(draft, period) { it.copy(isIncluded = isIncluded) }
+
   fun setPeriodTag(draft: QuickPlanDraft, period: DayPeriod, tag: String): QuickPlanDraft =
     updatePeriod(draft, period) { current ->
       val nextTag = tag.takeUnless { it == current.tag }.orEmpty()
@@ -115,7 +122,10 @@ object QuickPlanReducer {
     val definition = currentDefinition(draft)
     val answer = answerFor(draft, definition.type)
     val current = answer.periodEntries.firstOrNull { it.period == period }
-      ?: QuickPlanPeriodEntry(period)
+      ?: QuickPlanPeriodEntry(
+        period = period,
+        isIncluded = definition.type != QuickPlanCardType.GO_OUT,
+      )
     val entries = answer.periodEntries.filterNot { it.period == period } + update(current)
     return putAnswer(draft, answer.copy(periodEntries = entries.sortedBy { it.period.ordinal }))
   }

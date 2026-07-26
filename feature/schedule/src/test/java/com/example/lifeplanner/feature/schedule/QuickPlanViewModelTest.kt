@@ -37,7 +37,7 @@ class QuickPlanViewModelTest {
   val mainDispatcherRule = MainDispatcherRule()
 
   @Test
-  fun loadRestoresDraftAndPersistsPeriodEdits() = runTest(mainDispatcherRule.dispatcher) {
+  fun loadRestoresDraftAndKeepsPeriodEditsUntilComplete() = runTest(mainDispatcherRule.dispatcher) {
     val date = LocalDate.of(2026, 7, 28)
     val restored = QuickPlanDraft(
       date = date,
@@ -62,15 +62,16 @@ class QuickPlanViewModelTest {
     viewModel.setPeriodLocation(DayPeriod.AFTERNOON, "北区")
     advanceUntilIdle()
 
-    val saved = scheduleRepository.savedDrafts.last()
-    assertEquals("电池循环测试", saved.workEntry(DayPeriod.MORNING).customText)
-    assertEquals("休息", saved.workEntry(DayPeriod.AFTERNOON).tag)
-    assertTrue(saved.workEntry(DayPeriod.AFTERNOON).location.isBlank())
+    val edited = viewModel.state.value.draft
+    assertEquals("电池循环测试", edited.workEntry(DayPeriod.MORNING).customText)
+    assertEquals("休息", edited.workEntry(DayPeriod.AFTERNOON).tag)
+    assertTrue(edited.workEntry(DayPeriod.AFTERNOON).location.isBlank())
 
     viewModel.clearPeriod(DayPeriod.MORNING)
     advanceUntilIdle()
-    assertFalse(scheduleRepository.savedDrafts.last().answers.getValue(QuickPlanCardType.WORK)
+    assertFalse(viewModel.state.value.draft.answers.getValue(QuickPlanCardType.WORK)
       .periodEntries.any { it.period == DayPeriod.MORNING })
+    assertTrue(scheduleRepository.appliedDrafts.isEmpty())
   }
 
   @Test
@@ -124,7 +125,7 @@ class QuickPlanViewModelTest {
 private class FakeScheduleRepository(
   private val restoredDraft: QuickPlanDraft?,
 ) : ScheduleRepository {
-  val savedDrafts = mutableListOf<QuickPlanDraft>()
+  val appliedDrafts = mutableListOf<QuickPlanDraft>()
 
   override fun observeDay(date: LocalDate): Flow<DaySchedule> =
     MutableStateFlow(DaySchedule(date))
@@ -138,11 +139,11 @@ private class FakeScheduleRepository(
     endMinute: Int,
   ): Long = 0
   override suspend fun archiveBlock(id: Long) = Unit
-  override suspend fun getQuickPlanDraft(date: LocalDate): QuickPlanDraft? = restoredDraft
-  override suspend fun saveQuickPlanDraft(draft: QuickPlanDraft) {
-    savedDrafts += draft
+  override suspend fun startQuickPlan(date: LocalDate): QuickPlanDraft =
+    restoredDraft ?: QuickPlanDraft(date)
+  override suspend fun applyQuickPlan(draft: QuickPlanDraft, baseline: QuickPlanDraft) {
+    appliedDrafts += draft
   }
-  override suspend fun applyQuickPlan(draft: QuickPlanDraft) = Unit
 }
 
 private class FakeStockRepository(
