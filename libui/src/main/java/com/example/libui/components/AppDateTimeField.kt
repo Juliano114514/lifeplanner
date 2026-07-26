@@ -52,31 +52,15 @@ fun AppDatePickerField(
   )
 
   if (showPicker) {
-    val pickerState = rememberDatePickerState(
-      initialSelectedDateMillis = value?.toPickerMillis(),
-    )
-    DatePickerDialog(
-      onDismissRequest = { showPicker = false },
-      confirmButton = {
-        PickerActions(
-          canClear = optional && value != null,
-          confirmEnabled = pickerState.selectedDateMillis != null,
-          onClear = {
-            onValueChange(null)
-            showPicker = false
-          },
-          onCancel = { showPicker = false },
-          onConfirm = {
-            pickerState.selectedDateMillis?.let {
-              onValueChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate())
-            }
-            showPicker = false
-          },
-        )
+    AppDatePickerDialog(
+      value = value,
+      canClear = optional && value != null,
+      onDismiss = { showPicker = false },
+      onValueChange = {
+        onValueChange(it)
+        showPicker = false
       },
-    ) {
-      DatePicker(state = pickerState)
-    }
+    )
   }
 }
 
@@ -100,7 +84,7 @@ fun AppTimePickerField(
 
   var showPicker by rememberSaveable { mutableStateOf(false) }
   PickerField(
-    value = valueMinutes?.let(::formatMinute).orEmpty(),
+    value = valueMinutes?.let(::formatMinuteOfDay).orEmpty(),
     label = label,
     icon = { Icon(Icons.Rounded.Schedule, contentDescription = null) },
     onClick = { showPicker = true },
@@ -140,6 +124,37 @@ fun AppTimePickerField(
         )
       },
     )
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun AppDatePickerDialog(
+  value: LocalDate?,
+  canClear: Boolean = false,
+  onDismiss: () -> Unit,
+  onValueChange: (LocalDate?) -> Unit,
+) {
+  val pickerState = rememberDatePickerState(
+    initialSelectedDateMillis = value?.toPickerMillis(),
+  )
+  DatePickerDialog(
+    onDismissRequest = onDismiss,
+    confirmButton = {
+      PickerActions(
+        canClear = canClear,
+        confirmEnabled = pickerState.selectedDateMillis != null,
+        onClear = { onValueChange(null) },
+        onCancel = onDismiss,
+        onConfirm = {
+          pickerState.selectedDateMillis?.let {
+            onValueChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate())
+          }
+        },
+      )
+    },
+  ) {
+    DatePicker(state = pickerState)
   }
 }
 
@@ -210,7 +225,7 @@ private fun Int.snapToStep(step: Int, allowEndOfDay: Boolean): Int {
   }
 }
 
-private fun formatMinute(value: Int): String =
+fun formatMinuteOfDay(value: Int): String =
   "%02d:%02d".format(value / MINUTES_PER_HOUR, value % MINUTES_PER_HOUR)
 
 private const val MINUTES_PER_HOUR = 60

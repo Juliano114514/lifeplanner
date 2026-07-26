@@ -72,6 +72,7 @@ import com.example.libui.components.AppScheduleEditorDialog
 import com.example.libui.components.AppStatusBadge
 import com.example.libui.components.AppStatusTone
 import com.example.libui.components.AppTopBar
+import com.example.libui.components.formatMinuteOfDay
 import com.example.libui.theme.AppSize
 import com.example.libui.theme.AppSpacing
 import java.time.LocalDate
@@ -219,7 +220,7 @@ private fun Timeline(
                 .combinedClickable(
                   onClick = {},
                   onLongClick = { onEmptyLongClick(hour) },
-                  onLongClickLabel = "新增 ${formatMinute(hour * 60)} 日程",
+                  onLongClickLabel = "新增 ${formatMinuteOfDay(hour * 60)} 日程",
                 ),
             )
           } else {
@@ -247,7 +248,7 @@ private fun TimelineBlockCard(
   onLongClick: () -> Unit,
   onComplete: () -> Unit,
 ) {
-  val timeText = "${formatMinute(block.startMinute)}–${formatMinute(block.endMinute)}"
+  val timeText = "${formatMinuteOfDay(block.startMinute)}–${formatMinuteOfDay(block.endMinute)}"
   val details = if (block.note.isBlank()) timeText else "$timeText · ${block.note.trim()}"
   AppCard(
     onClick = onClick,
@@ -662,11 +663,7 @@ private fun QuickPlanCardDefinition.isMeal(): Boolean =
     type == QuickPlanCardType.LUNCH ||
     type == QuickPlanCardType.DINNER
 
-private fun DayPeriod.label(): String = when (this) {
-  DayPeriod.MORNING -> "早上"
-  DayPeriod.AFTERNOON -> "下午"
-  DayPeriod.EVENING -> "晚上"
-}
+private fun DayPeriod.label(): String = QuickPlanCatalog.periodLabel(this)
 
 private fun DayPeriod.windowLabel(type: QuickPlanCardType): String = when (type) {
   QuickPlanCardType.GO_OUT -> when (this) {
@@ -692,5 +689,3 @@ private fun StockItemDetails.stockLabel(): String = when (item.trackingMode) {
     null -> "未记录"
   }
 }
-
-private fun formatMinute(value: Int): String = "%02d:%02d".format(value / 60, value % 60)

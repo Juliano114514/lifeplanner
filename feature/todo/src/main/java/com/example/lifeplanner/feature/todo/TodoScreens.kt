@@ -60,6 +60,7 @@ import com.example.libui.components.AppStatusBadge
 import com.example.libui.components.AppStatusTone
 import com.example.libui.components.AppTimePickerField
 import com.example.libui.components.AppTopBar
+import com.example.libui.components.formatMinuteOfDay
 import com.example.libui.theme.AppSpacing
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -274,7 +275,7 @@ private fun TodayScheduleCard(
         Column(Modifier.weight(1f)) {
           Text(block.title, style = MaterialTheme.typography.titleMedium)
           Text(
-            text = "${formatScheduleMinute(block.startMinute)}–${formatScheduleMinute(block.endMinute)}",
+            text = "${formatMinuteOfDay(block.startMinute)}–${formatMinuteOfDay(block.endMinute)}",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
@@ -371,9 +372,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.todoSection(
     TodoCard(item, urgent, onEditTask, onScheduleTask, onToggleComplete, onTogglePin, onSkip, onArchive)
   }
 }
-
-private fun formatScheduleMinute(value: Int): String =
-  "%02d:%02d".format(value / 60, value % 60)
 
 @Composable
 private fun TodoCard(

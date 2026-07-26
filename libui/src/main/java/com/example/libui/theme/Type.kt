@@ -4,80 +4,32 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 
 /** 基于 Material 3 命名的精简字体阶梯，使用系统字体并支持系统字号缩放。 */
 val AppTypography = Typography(
-  displaySmall = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.ExtraBold,
-    fontSize = 36.sp,
-    lineHeight = 44.sp,
-  ),
-  headlineLarge = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.Bold,
-    fontSize = 32.sp,
-    lineHeight = 40.sp,
-  ),
-  headlineMedium = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.Bold,
-    fontSize = 28.sp,
-    lineHeight = 36.sp,
-  ),
-  headlineSmall = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.Bold,
-    fontSize = 24.sp,
-    lineHeight = 32.sp,
-  ),
-  titleLarge = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.Bold,
-    fontSize = 22.sp,
-    lineHeight = 28.sp,
-  ),
-  titleMedium = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.SemiBold,
-    fontSize = 16.sp,
-    lineHeight = 24.sp,
-  ),
-  titleSmall = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.SemiBold,
-    fontSize = 14.sp,
-    lineHeight = 20.sp,
-  ),
-  bodyLarge = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.Normal,
-    fontSize = 16.sp,
-    lineHeight = 24.sp,
-  ),
-  bodyMedium = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.Normal,
-    fontSize = 14.sp,
-    lineHeight = 20.sp,
-  ),
-  bodySmall = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.Normal,
-    fontSize = 12.sp,
-    lineHeight = 16.sp,
-  ),
-  labelLarge = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.Bold,
-    fontSize = 14.sp,
-    lineHeight = 20.sp,
-  ),
-  labelMedium = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.SemiBold,
-    fontSize = 12.sp,
-    lineHeight = 16.sp,
-  ),
+  displaySmall = appTextStyle(FontWeight.ExtraBold, 36.sp, 44.sp),
+  headlineLarge = appTextStyle(FontWeight.Bold, 32.sp, 40.sp),
+  headlineMedium = appTextStyle(FontWeight.Bold, 28.sp, 36.sp),
+  headlineSmall = appTextStyle(FontWeight.Bold, 24.sp, 32.sp),
+  titleLarge = appTextStyle(FontWeight.Bold, 22.sp, 28.sp),
+  titleMedium = appTextStyle(FontWeight.SemiBold, 16.sp, 24.sp),
+  titleSmall = appTextStyle(FontWeight.SemiBold, 14.sp, 20.sp),
+  bodyLarge = appTextStyle(FontWeight.Normal, 16.sp, 24.sp),
+  bodyMedium = appTextStyle(FontWeight.Normal, 14.sp, 20.sp),
+  bodySmall = appTextStyle(FontWeight.Normal, 12.sp, 16.sp),
+  labelLarge = appTextStyle(FontWeight.Bold, 14.sp, 20.sp),
+  labelMedium = appTextStyle(FontWeight.SemiBold, 12.sp, 16.sp),
+)
+
+private fun appTextStyle(
+  weight: FontWeight,
+  size: TextUnit,
+  lineHeight: TextUnit,
+) = TextStyle(
+  fontFamily = FontFamily.Default,
+  fontWeight = weight,
+  fontSize = size,
+  lineHeight = lineHeight,
 )

@@ -21,9 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import com.example.libui.theme.AppSize
 import com.example.libui.theme.AppSpacing
+import com.example.libui.theme.AppStroke
 
 enum class AppButtonVariant {
   Primary,
@@ -65,7 +65,7 @@ fun AppButton(
       loading -> CircularProgressIndicator(
         modifier = Modifier.size(AppSize.iconSmall),
         color = LocalContentColor.current,
-        strokeWidth = 2.dp,
+        strokeWidth = AppStroke.selected,
       )
       leadingIcon != null -> androidx.compose.material3.Icon(
         imageVector = leadingIcon,

@@ -1,5 +1,6 @@
 package com.example.libui.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Immutable
@@ -71,24 +72,19 @@ data class ExtendedColors(
   val cardBorder: Color,
 )
 
-internal val LightExtendedColors = ExtendedColors(
-  success = Color(0xFF167A45),
-  onSuccess = Color.White,
-  successContainer = Color(0xFFB7F4CF),
-  onSuccessContainer = Color(0xFF073821),
-  warning = Color(0xFF805600),
-  warningContainer = Color(0xFFFFDEA3),
-  onWarningContainer = Color(0xFF2A1A00),
-  cardBorder = Color(0xFFD9E1DA),
-)
+internal val LightExtendedColors =
+  LightColorScheme.toExtendedColors(cardBorder = Color(0xFFD9E1DA))
 
-internal val DarkExtendedColors = ExtendedColors(
-  success = Color(0xFF8CDBAA),
-  onSuccess = Color(0xFF00391D),
-  successContainer = Color(0xFF00522C),
-  onSuccessContainer = Color(0xFFA7F8C5),
-  warning = Color(0xFFFFBA42),
-  warningContainer = Color(0xFF624000),
-  onWarningContainer = Color(0xFFFFDEA3),
-  cardBorder = Color(0xFF364039),
+internal val DarkExtendedColors =
+  DarkColorScheme.toExtendedColors(cardBorder = Color(0xFF364039))
+
+private fun ColorScheme.toExtendedColors(cardBorder: Color) = ExtendedColors(
+  success = primary,
+  onSuccess = onPrimary,
+  successContainer = primaryContainer,
+  onSuccessContainer = onPrimaryContainer,
+  warning = tertiary,
+  warningContainer = tertiaryContainer,
+  onWarningContainer = onTertiaryContainer,
+  cardBorder = cardBorder,
 )

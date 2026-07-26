@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import com.example.libui.theme.AppSize
 import com.example.libui.theme.AppSpacing
 import com.example.libui.theme.LifePlannerDesign
@@ -121,29 +120,15 @@ fun AppStatusBadge(
 ) {
   val scheme = MaterialTheme.colorScheme
   val extra = LifePlannerDesign.colors
-  val container: Color
-  val content: Color
-  when (tone) {
-    AppStatusTone.Neutral -> {
-      container = scheme.surfaceVariant
-      content = scheme.onSurfaceVariant
-    }
-    AppStatusTone.Success -> {
-      container = extra.successContainer
-      content = extra.onSuccessContainer
-    }
-    AppStatusTone.Warning -> {
-      container = extra.warningContainer
-      content = extra.onWarningContainer
-    }
-    AppStatusTone.Error -> {
-      container = scheme.errorContainer
-      content = scheme.onErrorContainer
-    }
+  val (container: Color, content: Color) = when (tone) {
+    AppStatusTone.Neutral -> scheme.surfaceVariant to scheme.onSurfaceVariant
+    AppStatusTone.Success -> extra.successContainer to extra.onSuccessContainer
+    AppStatusTone.Warning -> extra.warningContainer to extra.onWarningContainer
+    AppStatusTone.Error -> scheme.errorContainer to scheme.onErrorContainer
   }
   Surface(
     modifier = modifier,
-    shape = RoundedCornerShape(999.dp),
+    shape = CircleShape,
     color = container,
     contentColor = content,
   ) {

@@ -5,14 +5,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,12 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDateNavigator(
   date: LocalDate,
@@ -58,34 +51,13 @@ fun AppDateNavigator(
   }
 
   if (showPicker) {
-    val pickerState = rememberDatePickerState(
-      initialSelectedDateMillis = date.toPickerMillis(),
-    )
-    DatePickerDialog(
-      onDismissRequest = { showPicker = false },
-      confirmButton = {
-        Row {
-          TextButton(onClick = { showPicker = false }) {
-            Text("取消")
-          }
-          TextButton(
-            enabled = pickerState.selectedDateMillis != null,
-            onClick = {
-              pickerState.selectedDateMillis?.let {
-                onDateChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate())
-              }
-              showPicker = false
-            },
-          ) {
-            Text("确定")
-          }
-        }
+    AppDatePickerDialog(
+      value = date,
+      onDismiss = { showPicker = false },
+      onValueChange = {
+        if (it != null) onDateChange(it)
+        showPicker = false
       },
-    ) {
-      DatePicker(state = pickerState)
-    }
+    )
   }
 }
-
-private fun LocalDate.toPickerMillis(): Long =
-  atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()

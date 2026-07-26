@@ -46,6 +46,13 @@ private data class TopLevelDestination(
   val selected: (NavDestination?) -> Boolean,
 )
 
+private val topLevelDestinations = listOf(
+  TopLevelDestination(TodoRoute, "任务", Icons.Rounded.CheckCircle) { it.hasRouteName<TodoRoute>() },
+  TopLevelDestination(ScheduleRoute(), "日程", Icons.Rounded.CalendarMonth) { it.hasRouteName<ScheduleRoute>() },
+  TopLevelDestination(DishesRoute, "菜品", Icons.Rounded.Restaurant) { it.hasRouteName<DishesRoute>() },
+  TopLevelDestination(InventoryRoute, "库存", Icons.Rounded.Inventory2) { it.hasRouteName<InventoryRoute>() },
+)
+
 @Composable
 fun LifePlannerApp(
   modifier: Modifier = Modifier,
@@ -53,13 +60,7 @@ fun LifePlannerApp(
 ) {
   val backStackEntry by navController.currentBackStackEntryAsState()
   val destination = backStackEntry?.destination
-  val topLevels = listOf(
-    TopLevelDestination(TodoRoute, "任务", Icons.Rounded.CheckCircle) { it.hasRouteName<TodoRoute>() },
-    TopLevelDestination(ScheduleRoute(), "日程", Icons.Rounded.CalendarMonth) { it.hasRouteName<ScheduleRoute>() },
-    TopLevelDestination(DishesRoute, "菜品", Icons.Rounded.Restaurant) { it.hasRouteName<DishesRoute>() },
-    TopLevelDestination(InventoryRoute, "库存", Icons.Rounded.Inventory2) { it.hasRouteName<InventoryRoute>() },
-  )
-  val showBottomBar = topLevels.any { it.selected(destination) }
+  val showBottomBar = topLevelDestinations.any { it.selected(destination) }
 
   Scaffold(
     modifier = modifier,
@@ -69,7 +70,7 @@ fun LifePlannerApp(
           containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
           tonalElevation = AppElevation.none,
         ) {
-          topLevels.forEach { item ->
+          topLevelDestinations.forEach { item ->
             NavigationBarItem(
               selected = item.selected(destination),
               onClick = { navController.navigateTopLevel(item.route) },
@@ -218,7 +219,4 @@ private inline fun <reified T : Any> NavDestination?.hasRouteName(): Boolean {
 }
 
 private fun NavDestination.isTopLevel(): Boolean =
-  hasRouteName<TodoRoute>() ||
-    hasRouteName<ScheduleRoute>() ||
-    hasRouteName<DishesRoute>() ||
-    hasRouteName<InventoryRoute>()
+  topLevelDestinations.any { it.selected(this) }
