@@ -1,5 +1,9 @@
 package com.example.lifeplanner.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarMonth
@@ -25,6 +29,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.lifeplanner.core.domain.model.StockKind
 import com.example.libui.theme.AppElevation
+import com.example.libui.theme.AppMotion
 import com.example.lifeplanner.feature.dishes.DishesRoute as DishesScreen
 import com.example.lifeplanner.feature.inventory.InventoryRoute as InventoryScreen
 import com.example.lifeplanner.feature.inventory.ShoppingListRoute as ShoppingListScreen
@@ -92,6 +97,62 @@ fun LifePlannerApp(
       navController = navController,
       startDestination = TodoRoute,
       modifier = Modifier.padding(padding),
+      enterTransition = {
+        if (initialState.destination.isTopLevel() && targetState.destination.isTopLevel()) {
+          fadeIn(
+            animationSpec = tween(
+              durationMillis = AppMotion.durationMedium,
+              delayMillis = AppMotion.durationShort,
+              easing = AppMotion.standard,
+            ),
+          )
+        } else {
+          fadeIn(
+            animationSpec = tween(
+              durationMillis = AppMotion.durationMedium,
+              easing = AppMotion.standard,
+            ),
+          ) + slideIntoContainer(
+            towards = AnimatedContentTransitionScope.SlideDirection.Start,
+            animationSpec = tween(
+              durationMillis = AppMotion.durationNavigation,
+              easing = AppMotion.emphasizedDecelerate,
+            ),
+            initialOffset = { distance -> distance / 16 },
+          )
+        }
+      },
+      exitTransition = {
+        fadeOut(
+          animationSpec = tween(
+            durationMillis = AppMotion.durationShort,
+            easing = AppMotion.standardAccelerate,
+          ),
+        )
+      },
+      popEnterTransition = {
+        fadeIn(
+          animationSpec = tween(
+            durationMillis = AppMotion.durationMedium,
+            easing = AppMotion.standard,
+          ),
+        ) + slideIntoContainer(
+          towards = AnimatedContentTransitionScope.SlideDirection.End,
+          animationSpec = tween(
+            durationMillis = AppMotion.durationNavigation,
+            easing = AppMotion.emphasizedDecelerate,
+          ),
+          initialOffset = { distance -> distance / 16 },
+        )
+      },
+      popExitTransition = {
+        fadeOut(
+          animationSpec = tween(
+            durationMillis = AppMotion.durationShort,
+            easing = AppMotion.standardAccelerate,
+          ),
+        )
+      },
     ) {
       composable<TodoRoute> {
         TodoScreen(
@@ -160,3 +221,9 @@ private inline fun <reified T : Any> NavDestination?.hasRouteName(): Boolean {
   val name = T::class.qualifiedName ?: return false
   return this?.route?.substringBefore("?") == name
 }
+
+private fun NavDestination.isTopLevel(): Boolean =
+  hasRouteName<TodoRoute>() ||
+    hasRouteName<ScheduleRoute>() ||
+    hasRouteName<DishesRoute>() ||
+    hasRouteName<InventoryRoute>()

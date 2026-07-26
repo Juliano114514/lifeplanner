@@ -68,8 +68,6 @@ data class ExtendedColors(
   val warning: Color,
   val warningContainer: Color,
   val onWarningContainer: Color,
-  val primaryDepth: Color,
-  val errorDepth: Color,
   val cardBorder: Color,
 )
 
@@ -81,8 +79,6 @@ internal val LightExtendedColors = ExtendedColors(
   warning = Color(0xFF805600),
   warningContainer = Color(0xFFFFDEA3),
   onWarningContainer = Color(0xFF2A1A00),
-  primaryDepth = Color(0xFF0D5630),
-  errorDepth = Color(0xFF7D1010),
   cardBorder = Color(0xFFD9E1DA),
 )
 
@@ -94,7 +90,5 @@ internal val DarkExtendedColors = ExtendedColors(
   warning = Color(0xFFFFBA42),
   warningContainer = Color(0xFF624000),
   onWarningContainer = Color(0xFFFFDEA3),
-  primaryDepth = Color(0xFF003E20),
-  errorDepth = Color(0xFF690005),
   cardBorder = Color(0xFF364039),
 )
