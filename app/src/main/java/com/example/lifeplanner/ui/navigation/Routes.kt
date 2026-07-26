@@ -1,13 +1,33 @@
 package com.example.lifeplanner.ui.navigation
 
-object Routes {
-  const val HOME = "home"
-  const val PLAN = "plan?planId={planId}"
-  const val PLAN_RESULT = "plan_result/{planId}"
+import kotlinx.serialization.Serializable
 
-  fun planRoute(planId: Long? = null): String {
-    return if (planId == null) "plan" else "plan?planId=$planId"
-  }
+@Serializable
+data object TodoRoute
 
-  fun planResultRoute(planId: Long): String = "plan_result/$planId"
-}
+@Serializable
+data class ScheduleRoute(
+  val epochDay: Long? = null,
+  val taskOccurrenceId: Long? = null,
+)
+
+@Serializable
+data object DishesRoute
+
+@Serializable
+data object InventoryRoute
+
+@Serializable
+data class TaskEditorRoute(val taskId: Long? = null)
+
+@Serializable
+data class QuickPlanRoute(val epochDay: Long)
+
+@Serializable
+data class StockEditorRoute(
+  val itemId: Long? = null,
+  val kind: String,
+)
+
+@Serializable
+data object ShoppingListRoute

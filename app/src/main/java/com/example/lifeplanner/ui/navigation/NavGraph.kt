@@ -1,69 +1,162 @@
 package com.example.lifeplanner.ui.navigation
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Inventory2
+import androidx.compose.material.icons.rounded.Restaurant
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavDestination
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
-import com.example.lifeplanner.ui.home.HomeScreen
-import com.example.lifeplanner.ui.plan.PlanResultScreen
-import com.example.lifeplanner.ui.plan.PlanScreen
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+import com.example.lifeplanner.core.domain.model.StockKind
+import com.example.libui.theme.AppElevation
+import com.example.lifeplanner.feature.dishes.DishesRoute as DishesScreen
+import com.example.lifeplanner.feature.inventory.InventoryRoute as InventoryScreen
+import com.example.lifeplanner.feature.inventory.ShoppingListRoute as ShoppingListScreen
+import com.example.lifeplanner.feature.inventory.StockEditorRoute as StockEditorScreen
+import com.example.lifeplanner.feature.schedule.QuickPlanRoute as QuickPlanScreen
+import com.example.lifeplanner.feature.schedule.ScheduleRoute as ScheduleScreen
+import com.example.lifeplanner.feature.todo.TaskEditorRoute as TaskEditorScreen
+import com.example.lifeplanner.feature.todo.TodoRoute as TodoScreen
+import java.time.LocalDate
+
+private data class TopLevelDestination(
+  val route: Any,
+  val label: String,
+  val icon: ImageVector,
+  val selected: (NavDestination?) -> Boolean,
+)
 
 @Composable
-fun LifePlannerNavGraph(
-  navController: NavHostController,
+fun LifePlannerApp(
   modifier: Modifier = Modifier,
+  navController: NavHostController = rememberNavController(),
 ) {
-  NavHost(
-    navController = navController,
-    startDestination = Routes.HOME,
+  val backStackEntry by navController.currentBackStackEntryAsState()
+  val destination = backStackEntry?.destination
+  val topLevels = listOf(
+    TopLevelDestination(TodoRoute, "任务", Icons.Rounded.CheckCircle) { it.hasRouteName<TodoRoute>() },
+    TopLevelDestination(ScheduleRoute(), "日程", Icons.Rounded.CalendarMonth) { it.hasRouteName<ScheduleRoute>() },
+    TopLevelDestination(DishesRoute, "菜品", Icons.Rounded.Restaurant) { it.hasRouteName<DishesRoute>() },
+    TopLevelDestination(InventoryRoute, "库存", Icons.Rounded.Inventory2) { it.hasRouteName<InventoryRoute>() },
+  )
+  val showBottomBar = topLevels.any { it.selected(destination) }
+
+  Scaffold(
     modifier = modifier,
-  ) {
-    composable(Routes.HOME) {
-      HomeScreen(
-        onNavigateToPlan = { planId ->
-          navController.navigate(Routes.planRoute(planId)) {
-            launchSingleTop = true
+    bottomBar = {
+      if (showBottomBar) {
+        NavigationBar(
+          containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+          tonalElevation = AppElevation.none,
+        ) {
+          topLevels.forEach { item ->
+            NavigationBarItem(
+              selected = item.selected(destination),
+              onClick = {
+                navController.navigate(item.route) {
+                  popUpTo<TodoRoute> { saveState = true }
+                  launchSingleTop = true
+                  restoreState = true
+                }
+              },
+              icon = { Icon(item.icon, contentDescription = item.label) },
+              label = { Text(item.label) },
+              colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+                selectedTextColor = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                indicatorColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+              ),
+            )
           }
-        },
-      )
-    }
-    composable(
-      route = Routes.PLAN,
-      arguments = listOf(
-        navArgument("planId") {
-          type = NavType.LongType
-          defaultValue = -1L
-        },
-      ),
-    ) { entry ->
-      val planId = entry.arguments?.getLong("planId")?.takeIf { it > 0 }
-      PlanScreen(
-        planId = planId,
-        onNavigateToResult = { completedPlanId ->
-          navController.navigate(Routes.planResultRoute(completedPlanId)) {
-            popUpTo(Routes.HOME)
-            launchSingleTop = true
-          }
-        },
-      )
-    }
-    composable(
-      route = Routes.PLAN_RESULT,
-      arguments = listOf(navArgument("planId") { type = NavType.LongType }),
-    ) { entry ->
-      val planId = entry.arguments?.getLong("planId") ?: return@composable
-      PlanResultScreen(
-        planId = planId,
-        onDone = {
-          navController.navigate(Routes.HOME) {
-            popUpTo(Routes.HOME) { inclusive = true }
-            launchSingleTop = true
-          }
-        },
-      )
+        }
+      }
+    },
+  ) { padding ->
+    NavHost(
+      navController = navController,
+      startDestination = TodoRoute,
+      modifier = Modifier.padding(padding),
+    ) {
+      composable<TodoRoute> {
+        TodoScreen(
+          onAddTask = { navController.navigate(TaskEditorRoute()) },
+          onEditTask = { navController.navigate(TaskEditorRoute(it)) },
+          onScheduleTask = {
+            navController.navigate(
+              ScheduleRoute(
+                epochDay = LocalDate.now().toEpochDay(),
+                taskOccurrenceId = it,
+              ),
+            )
+          },
+        )
+      }
+      composable<ScheduleRoute> { entry ->
+        val route = entry.toRoute<ScheduleRoute>()
+        ScheduleScreen(
+          initialEpochDay = route.epochDay,
+          taskOccurrenceId = route.taskOccurrenceId,
+          onOpenQuickPlan = { navController.navigate(QuickPlanRoute(it)) },
+        )
+      }
+      composable<DishesRoute> {
+        DishesScreen(
+          onAddFood = { navController.navigate(StockEditorRoute(kind = StockKind.FOOD.name)) },
+          onEditFood = { navController.navigate(StockEditorRoute(it, StockKind.FOOD.name)) },
+          onOpenShopping = { navController.navigate(ShoppingListRoute) },
+        )
+      }
+      composable<InventoryRoute> {
+        InventoryScreen(
+          onAddItem = { navController.navigate(StockEditorRoute(kind = StockKind.HOUSEHOLD.name)) },
+          onEditItem = { navController.navigate(StockEditorRoute(it, StockKind.HOUSEHOLD.name)) },
+          onOpenShopping = { navController.navigate(ShoppingListRoute) },
+        )
+      }
+      composable<TaskEditorRoute> { entry ->
+        TaskEditorScreen(
+          taskId = entry.toRoute<TaskEditorRoute>().taskId,
+          onDone = navController::popBackStack,
+        )
+      }
+      composable<QuickPlanRoute> { entry ->
+        QuickPlanScreen(
+          epochDay = entry.toRoute<QuickPlanRoute>().epochDay,
+          onDone = navController::popBackStack,
+        )
+      }
+      composable<StockEditorRoute> { entry ->
+        val route = entry.toRoute<StockEditorRoute>()
+        StockEditorScreen(
+          itemId = route.itemId,
+          kind = StockKind.valueOf(route.kind),
+          onDone = navController::popBackStack,
+        )
+      }
+      composable<ShoppingListRoute> {
+        ShoppingListScreen(onDone = navController::popBackStack)
+      }
     }
   }
+}
+
+private inline fun <reified T : Any> NavDestination?.hasRouteName(): Boolean {
+  val name = T::class.qualifiedName ?: return false
+  return this?.route?.substringBefore("?") == name
 }

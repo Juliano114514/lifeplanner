@@ -10,8 +10,14 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/app" />
-            <option value="$PROJECT_DIR$/foundation" />
-            <option value="$PROJECT_DIR$/libroom" />
+            <option value="$PROJECT_DIR$/core" />
+            <option value="$PROJECT_DIR$/core/database" />
+            <option value="$PROJECT_DIR$/core/domain" />
+            <option value="$PROJECT_DIR$/feature" />
+            <option value="$PROJECT_DIR$/feature/dishes" />
+            <option value="$PROJECT_DIR$/feature/inventory" />
+            <option value="$PROJECT_DIR$/feature/schedule" />
+            <option value="$PROJECT_DIR$/feature/todo" />
             <option value="$PROJECT_DIR$/libui" />
           </set>
         </option>

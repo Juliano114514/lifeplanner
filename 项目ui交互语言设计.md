@@ -1,270 +1,278 @@
-# 项目 UI 交互语言设计规范（v1.1）
+# LifePlanner UI 交互语言设计规范
 
-> **设计语言**：Chunky / Neo-tactile（多邻国式 3D 厚触点）× Material 3 结构与栅格  
-> **适用范围**：首页入口 → 一天规划卡片流（8 张）→ 规划结果页；库存链路复用同一组件库  
-> **实现模块**：`libui`（展示）+ `foundation/domain/plan`（卡片元数据与流程）  
-> **Token 唯一数据源**：`libui/theme/Dimens.kt`、`libui/theme/Type.kt`、`libui/res/values/colors.xml`
+> 设计语言：Calm Playful（克制活力）
+>
+> 平台基础：Jetpack Compose + Material 3
+> 设计系统模块：`:libui`
 
----
+## 1. 设计定位
 
-## 1. 设计原则
+LifePlanner 是高频使用的个人工具。界面需要有亲和力，但不能让装饰、阴影和动画干扰任务、时间与库存信息。
 
-| 原则 | 含义 | 落地手段 |
+因此采用以下组合：
+
+- **Material 3 负责结构**：语义色、字体阶梯、形状、导航和可访问性。
+- **国内设计体系负责秩序**：组件分级、设计 token、统一状态和高信息密度下的清晰度。
+- **多邻国负责情绪**：圆润、明亮、直接反馈，但只用于高价值操作。
+- **LifePlanner 自己负责克制**：3D 厚度只用于主按钮；卡片、导航、表单不重复堆叠强阴影。
+
+这不是对任一产品的复刻，而是针对本项目使用场景的统一规则。
+
+## 2. 调研依据
+
+| 来源 | 采用内容 | 本项目取舍 |
 |---|---|---|
-| **M3 结构，Chunky 触点** | 布局、间距、层级跟 Material 3；只有可点击元素保留厚度与下沉 | 卡面/进度条用 M3 分段与 tonal surface；按钮/chip 用 `TactileSurface` |
-| **可触摸的厚度** | 可点元素有实体感 | 底部硬阴影 + 按下时主体下沉（`TactileSurface`） |
-| **即时正反馈** | 操作有轻量响应，不叠帧 | 选中勾渐显；换卡横滑 ≤240ms；**禁止** chip 持续 scale 弹簧 |
-| **一次一焦点** | 卡片流居中单卡，干扰最小 | 大留白 + 内容区 `weight(1f)` 光学居中 |
-| **手势可回退** | 误操作零成本 | 下滑回退 + 顶栏「上一张」图标按钮 |
-| **二级不整卡切换** | 条件 follow-up 在同卡内展开 | `AnimatedVisibility` 纵向展开，不触发 `AnimatedContent` 横滑 |
+| [Google Material 3 for Compose](https://developer.android.com/develop/ui/compose/designsystems/material3) | 颜色、字体、形状、组件强调层级 | 作为 Android 结构基线 |
+| [Android 触控目标规范](https://support.google.com/accessibility/android/answer/7101858) | 48dp 最小触控目标与控件间距 | 所有可点击控件不低于 48dp |
+| [字节 Arco Design Token](https://arco.design/react/docs/token) | 语义 token、文字与容器层级 | 禁止页面散落颜色和尺寸 |
+| [字节 Arco Button](https://arco.design/react/components/button) | 按钮类型、尺寸和强调级别 | 统一为五种语义按钮 |
+| [腾讯 TDesign Button](https://tdesign.tencent.com/qq-miniprogram/components/button) | 按钮尺寸、状态和反馈的一致性 | 统一 enabled/pressed/loading/disabled |
+| [快手小程序设计指南](https://open.kuaishou.com/docs/design/designPrinciples/guide) | 语言一致、重点突出、反馈及时 | 一屏一个主操作，状态及时可见 |
+| [Duolingo 视觉风格](https://blog.duolingo.com/shape-language-duolingos-art-style/) | 明亮色彩、圆角按钮、少量高价值动画 | 保留亲和感，限制动效数量 |
+| [Duolingo Typography](https://design.duolingo.com/identity/typography) | 短标题使用更强字重，正文保持可读 | 系统字体 + 明确字重，不引入品牌字体 |
 
-视觉血统：多邻国（厚按钮 + 撒花 + 按压下沉）× M3 Expressive 间距节奏。品牌色 `#00DC5A`。
+## 3. 核心原则
 
----
+1. **一屏一个主操作**：同一视觉区域最多出现一个 Primary 按钮。
+2. **层级先靠色调和间距**：卡片默认不用硬阴影；不能用阴影解决所有分组问题。
+3. **尺寸来自 token**：页面禁止新增裸 `dp`、颜色值和动画时长。
+4. **状态不只靠颜色**：逾期、冲突、临期、低库存必须同时显示文字。
+5. **反馈即时且短促**：按压 100ms，普通变化 180ms，强调变化不超过 300ms。
+6. **可访问性优先**：触控目标至少 48dp，保留系统字体缩放，图标按钮提供描述。
 
-## 2. 设计 Token
+## 4. Token
 
-### 2.1 间距与圆角 — `theme/Dimens.kt`
+### 4.1 间距
 
-对齐 **8dp 栅格**；组件只引用 token，禁止散落魔法数字。
+基于 4dp 网格，定义于 `theme/Tokens.kt`：
 
-| Token | 值 | 用途 |
+| Token | 值 | 使用场景 |
+|---|---:|---|
+| `AppSpacing.xxs` | 2dp | 极小视觉修正 |
+| `AppSpacing.xs` | 4dp | 图标与紧邻元素 |
+| `AppSpacing.sm` | 8dp | 同组控件、Chip 间距 |
+| `AppSpacing.md` | 12dp | 卡片内部小节、表单项 |
+| `AppSpacing.lg` | 16dp | 页面水平边距、卡片内容边距 |
+| `AppSpacing.xl` | 24dp | 页面大区块 |
+| `AppSpacing.xxl` | 32dp | 空状态与大留白 |
+
+约束：
+
+- 手机页面默认水平边距 16dp。
+- 同组元素间距 8–12dp。
+- 跨区块间距 24dp。
+- 不使用 6、10、14、20 等独立间距值。
+
+### 4.2 尺寸
+
+| Token | 值 | 说明 |
+|---|---:|---|
+| `touchTarget` | 48dp | 最小触控目标 |
+| `button` | 48dp | 默认按钮面高度 |
+| `buttonLarge` | 56dp | 页面底部主操作 |
+| `iconSmall` | 18dp | 按钮、Chip 内图标 |
+| `icon` | 24dp | 常规图标 |
+| `fab` | 56dp | 浮动操作按钮 |
+| `progress` | 8dp | 向导进度条 |
+| `calendarCell` | 48dp | 日历触控单元 |
+
+Primary 和 Danger 按钮另有 4dp 底部厚度，总布局高度分别为 52dp 或 60dp。
+
+### 4.3 圆角
+
+圆角通过 `MaterialTheme.shapes` 获取：
+
+| Shape | 圆角 | 使用 |
+|---|---:|---|
+| `extraSmall` | 8dp | 小标签、紧凑容器 |
+| `small` | 12dp | 输入框、小控件 |
+| `medium` | 16dp | 按钮、Chip |
+| `large` | 20dp | 普通卡片 |
+| `extraLarge` | 28dp | Dialog、大容器、空状态图标底 |
+
+禁止在页面中直接创建 `RoundedCornerShape`。
+
+### 4.4 描边与深度
+
+- 普通描边：1dp。
+- 选中描边：2dp。
+- 卡片：1dp 低对比边框，无硬阴影。
+- Primary / Danger 按钮：4dp 同色深阶底面。
+- Secondary / Outline / Text：无 3D 深度。
+
+## 5. 颜色
+
+颜色定义于 `theme/Color.kt`，页面只使用 `MaterialTheme.colorScheme` 或 `LifePlannerDesign.colors`。
+
+### 5.1 品牌与语义
+
+| 角色 | 浅色主题 | 主要用途 |
 |---|---|---|
-| `space4` | 4dp | chip 勾与文字间距 |
-| `space8` | 8dp | 组件内小间距、`gapTag` |
-| `space12` | 12dp | 二级标题与选项区间距 |
-| `space16` | 16dp | `screenPadding`、chip 水平内边距 |
-| `space24` | 24dp | `cardPadding`、区块间距 |
-| `radiusChip` | 16dp | 胶囊 chip |
-| `radiusButton` | 16dp | 厚按钮 |
-| `radiusCard` | 24dp | 卡面（M3 Extra Large） |
-| `depthButton` | 4dp | 按钮下沉行程 |
-| `depthCard` | 4dp | 卡片底影偏移 |
-| `depthChip` | 3dp | chip 选中底影 |
+| Primary | `#167A45` | 主操作、选中态、焦点 |
+| Primary Container | `#B7F4CF` | 选中 Chip、轻强调容器 |
+| Secondary | `#3B6473` | 次级信息与次操作 |
+| Tertiary | `#805600` | 警告与时间提醒 |
+| Error | `#BA1A1A` | 错误、逾期、冲突 |
+| Background | `#F7F9F7` | 页面背景 |
+| Surface | `#FFFFFF` | 卡片与输入容器 |
 
-### 2.2 动效 — `theme/Dimens.kt` → `Motion`
+暗色主题使用独立色阶，不通过透明黑白覆盖浅色主题。
 
-| Token | 值 (ms) | 用途 |
-|---|---|---|
-| `Motion.FAST` | 120 | 按压下沉、退场淡出 |
-| `Motion.MEDIUM` | 240 | 换卡横滑、进度段变色、二级展开 |
-| `Motion.SLOW` | 400 | 撒花等长动效（少用） |
+### 5.2 使用规则
 
-**动效分层（强制）**：
+- Primary 只用于主操作与明确选中态。
+- Success、Warning、Error 使用对应 container/on-container 组合。
+- 正文使用 `onSurface`；辅助信息使用 `onSurfaceVariant`。
+- 禁用态由组件统一计算，页面不自行设置透明度。
+- 不在 Feature 中写十六进制颜色。
 
-| 层级 | 触发 | 实现 | 禁止 |
+## 6. 字体层级
+
+字体定义于 `theme/Type.kt`，使用系统字体：
+
+| 样式 | 字号/行高 | 字重 | 使用 |
 |---|---|---|---|
-| L1 页面 | `currentIndex` 变化 | `AnimatedContent` + `contentKey` | 用闭包读外层 `state`；把 follow-up 放进 key |
-| L2 卡内 | 主选触发二级 | `AnimatedVisibility` 纵向展开 | 整卡横滑 |
-| L3 控件 | chip 选中 | 勾 `fadeIn` + `expandHorizontally` | `scale` 弹簧、`spring` 常驻动画 |
+| `displaySmall` | 36/44sp | ExtraBold | 大数值、快速向导时间 |
+| `headlineLarge` | 32/40sp | Bold | 特殊首页标题 |
+| `headlineMedium` | 28/36sp | Bold | 向导问题 |
+| `headlineSmall` | 24/32sp | Bold | 空状态标题 |
+| `titleLarge` | 22/28sp | Bold | 顶部栏、页面标题 |
+| `titleMedium` | 16/24sp | SemiBold | 卡片标题、区块标题 |
+| `titleSmall` | 14/20sp | SemiBold | 小节标题 |
+| `bodyLarge` | 16/24sp | Regular | 主要正文 |
+| `bodyMedium` | 14/20sp | Regular | 默认正文 |
+| `bodySmall` | 12/16sp | Regular | 辅助说明 |
+| `labelLarge` | 14/20sp | Bold | 按钮、Chip |
+| `labelMedium` | 12/16sp | SemiBold | Badge、计数 |
 
-换卡 `transitionSpec` 标准：
+同一张卡片最多使用三种文字层级。
 
-```kotlin
-slideInHorizontally(tween(Motion.MEDIUM)) { dir * it / 4 } + fadeIn(tween(Motion.MEDIUM))
-  togetherWith
-slideOutHorizontally(tween(Motion.MEDIUM)) { -dir * it / 4 } + fadeOut(tween(Motion.FAST))
-```
+## 7. 按钮规范
 
-导航防抖：`PlanViewModel` 对 `Next` / `Previous` / `Skip` 限流 **250ms**。
+统一组件：`AppButton`。
 
-### 2.3 颜色 — `res/values/colors.xml`
-
-| 角色 | 浅色 | 用途 |
-|---|---|---|
-| `theme_primary` | `#00DC5A` | 品牌主色 |
-| `theme_primary_light` | `#F0E5FBF2` | `primaryContainer` |
-| `bg_page` | `#F2F4F7` | 页面底 |
-| `bg_card` | `#F2FFFFFF` | 卡面（半透叠层） |
-| `depth_primary` | `#00A848` | 主按钮/chip 底影 |
-| `depth_card` | `#14000000` | 卡片底影 |
-
-暗色覆盖见 `values-night/colors.xml`（`depth_*` 单独加深）。
-
-### 2.4 字体 — `theme/Type.kt`
-
-系统默认字体，靠字重拉开层级：
-
-| 角色 | style | size / weight | 用途 |
+| Variant | 强调级别 | 视觉 | 典型动作 |
 |---|---|---|---|
-| 屏标题 | `headlineMedium` | 28sp / 800 | 首页、结果页标题 |
-| 卡片标题 | `titleLarge` | 20sp / 700 | `PlanCardFrame` 居中标题 |
-| 步骤 | `labelMedium` | — | `2 / 8` 副标题 |
-| 按钮 | `titleMedium` | 17sp / 700 | `ChunkyButton` |
-| 选项 | `labelLarge` | 16sp / 600 | chip 文本 |
-| 二级标题 | `SectionTitleStyle` | 14sp / 700 | follow-up 区标题（如「怎么做」） |
-| 正文 | `bodyLarge` | 16sp | 结果摘要 |
+| `Primary` | 最高 | 绿色实心 + 4dp 厚度 | 保存、下一步、生成 |
+| `Secondary` | 中高 | 次色浅底，无厚度 | 快速向导、补充操作 |
+| `Outline` | 中 | 透明底 + 1dp 描边 | 返回、替代路径 |
+| `Text` | 低 | 无底无描边 | 跳过、取消、查看详情 |
+| `Danger` | 高风险 | 错误色实心 + 4dp 厚度 | 确认删除、不可逆动作 |
 
----
+尺寸：
 
-## 3. 核心组件目录
+- `Medium`：48dp，常规操作。
+- `Large`：56dp，页面底部主操作。
+- 图标 18dp，图标与文字间距 8dp。
+- 最小宽度 48dp；全宽由调用方显式 `fillMaxWidth()`。
 
-| 组件 | 路径 | 职责 |
-|---|---|---|
-| `TactileSurface` | `components/TactileSurface.kt` | 3D 按压地基：底影 + `offsetY` 下沉 |
-| `ChunkyButton` | `components/ChunkyButton.kt` | 主操作按钮（下一张 / 完成 / 复制） |
-| `ChunkyChip` | `components/ChunkyChip.kt` | 单/多选标签 |
-| `ChunkyCard` | `components/ChunkyCard.kt` | 首页入口卡 |
-| `TagChoiceGroup` | `components/TagChoiceGroup.kt` | 双列栅格包裹多个 `ChunkyChip`（每行最多 2 项） |
-| `PlanCardFrame` | `components/PlanCardFrame.kt` | 规划卡外框 + 顶栏 |
-| `PlanProgressBar` | `components/PlanProgressBar.kt` | 8 段分段进度 |
-| `HourTimePicker` | `components/HourTimePicker.kt` | 归家时间选择 |
-| `ConfettiBurst` | `components/ConfettiBurst.kt` | 结果页撒花 |
-| `TagCard` | `feature/plan/cards/PlanCardBodies.kt` | 主选 + 条件二级（follow-up） |
+状态：
 
----
+- **Pressed**：主按钮面下沉 4dp，100ms。
+- **Loading**：图标槽显示进度，禁用重复点击。
+- **Disabled**：使用 surface variant 和低强调文字。
+- **Focus/Accessibility**：由 Compose clickable/Surface 语义提供。
 
-## 4. 组件交互规格
+## 8. 容器与选择组件
 
-### 4.1 TactileSurface / ChunkyButton
+### 8.1 AppCard
 
-- 静止：主体在上，下方露出 `depth` 深色底块；`padding(bottom = depth)` 预留恒定高度，**按压不引起兄弟节点抖动**。
-- 按下：`animateDpAsState` 驱动 `bodyOffset` 0 → `depth`，`Motion.FAST`，无 ripple。
-- `ChunkyButton`：高 54dp，`Primary` 品牌绿 + `depth_primary`；`Outline` 描边 + `depth_surface`。
-
-### 4.2 ChunkyChip
-
-- 布局：双列栅格内 `fillMaxWidth` + 内容 `Row` 居中；选中时对勾 `fadeIn`，**不用** `expandHorizontally`，外框宽度不变。
-- 未选：`surface` 填充 + 1dp `outline` 描边，无底影。
-- 选中：`primaryContainer` + 2dp `primary` 描边 + `depthChip` 底影；左侧 `Check` 图标 `AnimatedVisibility` 渐显。
-- **不做** `scale` 弹跳（避免换卡时多 chip 叠帧卡顿）。
-
-### 4.3 PlanCardFrame
-
-```
-┌─────────────────────────────────────┐
-│  ←          早餐              ↷     │  圆形 IconButton
-│              2 / 8                  │  居中 titleLarge + labelMedium
-├─────────────────────────────────────┤
-│                                     │
-│         [ 选项区 weight(1f) ]        │  内容光学靠上，卡面 fillMaxSize
-│                                     │
-└─────────────────────────────────────┘
-  └─ depthCard 硬阴影（卡面必须 fillMaxSize，避免露出灰底）
-```
-
-- 圆角 `radiusCard`，`surface` 填充，`Column.fillMaxSize()`。
-- 内容区：`Box(weight(1f))` 包裹 slot。
-- 下滑 `detectVerticalDragGestures`（`dragAmount > 24`）触发回退，需 `canGoPrevious`。
-
-### 4.4 PlanProgressBar
-
-- 8 段（与 `PlanCardCatalog.TOTAL_COUNT` 一致），段间距 `space4`，高 6dp，圆角 50%。
-- `index <= currentIndex` 的段填 `primary`，其余 `surfaceVariant`；`animateColorAsState(tween(Motion.MEDIUM))`。
-
-### 4.5 TagCard（主选 + 二级 follow-up）
-
-- 主选：`TagChoiceGroup` 双列（`MULTI_TAG` / `SINGLE_TAG`）。
-- 二级：当 `PlanCardDefinition.activeFollowUp(selected)` 非空时，`AnimatedVisibility(expandVertically + fadeIn)` 展示 `SectionTitleStyle` 标题 + 单选 `TagChoiceGroup`。
-- 出门 / 学习·工作 / 健身 / 三餐均配置 `FollowUp`；归家时间与备注卡无 Tag 二级。
-- 主选变更导致二级失效时，由 `PlanFlowReducer` 自动清除 `subSelection`。
-
-### 4.6 HourTimePicker
-
-- 时间数字 `40sp / ExtraBold`，`AnimatedContent` 上滑切换。
-- `Slider` 保留小时吸附 `steps`；起止刻度 `labelSmall`。
-
-### 4.7 PlanResultContent
-
-- 成就区：圆形 `primary` 底 + `Check` 图标 +「今日规划完成 🎉」。
-- 摘要：`surface` 圆角卡内可滚动 `bodyLarge`。
-- `ConfettiBurst` 覆盖最上层，不拦截点击。
-- 底部：`ChunkyButton(Primary)` 复制 + `ChunkyButton(Outline)` 返回首页。
-
----
-
-## 5. 一天规划屏布局 — `PlanContent`
-
-```
-Column (fillMaxSize, padding top/bottom)
-├── PlanProgressBar          // 水平 screenPadding
-├── PlanCardFrame (weight 1)
-│   └── AnimatedContent(contentKey = currentIndex)
-│       └── CardBody         // 必须用 lambda 参数 state 快照
-└── ChunkyButton             // 「下一张」/「完成」
-```
-
-**CardBody 分发**（`PlanInteraction`）：
-
-| interaction | UI 组件 |
+| Style | 用途 |
 |---|---|
-| `MULTI_TAG` / `SINGLE_TAG` | `TagCard` |
-| `HOUR_TIME` | `HourTimePicker` |
-| `NOTE` | `OtherNoteCard` |
+| `Default` | 普通内容、列表项 |
+| `Tonal` | 日历、说明区等弱分组 |
+| `Selected` | 当前选中卡片 |
 
----
+规则：
 
-## 6. 数据与状态边界
+- 默认 20dp 圆角、1dp 边框、16dp 内容边距。
+- 可点击卡片使用 Material ripple，不使用 3D 深度。
+- 卡片内部不再额外重复 `padding(16.dp)`。
 
-| 层级 | 持有内容 | 不持有 |
-|---|---|---|
-| `PlanFlowState`（domain） | `currentIndex`、`answers` | 动画中间态 |
-| `PlanUiState`（libui） | 当前卡定义、答案、进度标志 | follow-up 展开态（由答案推导） |
-| Compose 局部 | `remember`、`*AsState` 动效 | 业务答案 |
-| `PlanAction` | `ToggleTag` / `SelectSingle` / `SelectFollowUp` / `Next` / `Previous` / `Skip` / 时间备注 | — |
+### 8.2 AppChoiceChip
 
-单向数据流：`PlanContent(state, onAction)` ← `PlanScreen` ← `PlanViewModel`。
+- 高度不低于 48dp。
+- 未选：Surface + 1dp 弱描边。
+- 选中：Primary Container + 2dp Primary 描边 + Check。
+- 单选和多选共用同一视觉，只由业务层决定选择逻辑。
 
----
+### 8.3 AppStatusBadge
 
-## 7. 扩展指南
+提供 Neutral、Success、Warning、Error 四种语义。Badge 只表达状态，不承担点击操作。
 
-### 7.1 新增卡片
+## 9. 页面层级
 
-1. `PlanCardType` 增加枚举值  
-2. `PlanCardCatalog.cards` 追加 `PlanCardDefinition`  
-3. 若需二级：配置 `followUp = FollowUp(title, options, triggers, skip)`  
-4. `PlanTextExporter` 补充导出格式  
-5. 无需改 UI，除非新 `PlanInteraction` 类型
+标准页面从上到下：
 
-### 7.2 FollowUp 配置语义
+1. `AppTopBar`：22sp 标题；二级页面统一返回图标。
+2. 页面内容：水平 16dp；区块间 24dp。
+3. 列表：卡片间 12dp；区块标题带数量。
+4. 主操作：FAB 或底部 Primary 按钮，二者按场景选一。
+5. 底部导航：四个一级入口，选中项使用 Primary Container。
 
-```kotlin
-data class FollowUp(
-  val title: String,              // 二级区标题，如「怎么做」「强度」
-  val options: List<String>,
-  val triggers: Set<String> = emptySet(),  // 空 = 任意主选触发
-  val skip: Set<String> = emptySet(),      // 命中则不展示二级
-)
+层级优先级：
+
+```text
+Primary action
+  > 当前任务/选中内容
+  > 页面标题
+  > 卡片标题
+  > 正文
+  > 辅助信息
 ```
 
-| 场景 | triggers | skip |
-|---|---|---|
-| 三餐·自己做 | `{"自己做"}` | — |
-| 健身·强度 | —（空=任意时段） | `{"今日练休"}` |
+## 10. 反馈与动效
 
-答案存储：`PlanCardAnswer.selectedOptions`（主选）+ `subSelection`（二级单选）。
+| Token | 时长 | 使用 |
+|---|---:|---|
+| `fast` | 100ms | 按压、细微状态 |
+| `standard` | 180ms | 选中、展开、内容切换 |
+| `emphasized` | 300ms | 页面级或完成反馈 |
 
-### 7.3 库存链路复用
+规则：
 
-盘点流可直接复用 `ChunkyButton` / `ChunkyChip` / `TactileSurface` / `Dimens` / `Motion`；进度与卡框按物品数量适配 `PlanProgressBar` 的 `totalCount` 参数。
+- 动画必须说明状态变化，不能只是持续装饰。
+- 同一时刻最多一个高注意力动画。
+- 列表滚动不叠加卡片逐个入场。
+- 加载、空状态、错误统一使用 `AppLoadingState`、`AppEmptyState`、`AppErrorState`。
+- 系统关闭动画时，Compose 动画应自然降级。
 
----
+## 11. 架构边界
 
-## 8. 依赖
+`:libui` 只包含：
 
-- Compose BOM 内：`animation`、`foundation`、`material3`
-- `material-icons-extended`（Rounded 图标，R8 按引用裁剪）
-- **禁止**为视觉引入额外三方 UI 库
+```text
+libui/
+└── src/main/java/com/example/libui/
+    ├── theme/
+    │   ├── Color.kt
+    │   ├── Shape.kt
+    │   ├── Theme.kt
+    │   ├── Tokens.kt
+    │   └── Type.kt
+    └── components/
+        ├── AppButton.kt
+        ├── AppCard.kt
+        ├── AppChoiceChip.kt
+        ├── AppChrome.kt
+        └── AppFeedback.kt
+```
 
----
+禁止放入：
 
-## 9. 验收清单（改 UI 时自检）
+- ViewModel、Repository、DAO、Room Entity。
+- Feature 专属 UiState、UiAction 和领域模型。
+- Navigation Controller 或具体 Route。
+- 页面级业务流程。
 
-- [ ] 间距/圆角/动效均来自 `Dimens` / `Motion`，无魔法数字
-- [ ] `PlanCardFrame` 内层 `fillMaxSize`，无灰底露出
-- [ ] `AnimatedContent` 使用 `contentKey` + lambda 内 state 快照
-- [ ] follow-up 用卡内 `AnimatedVisibility`，不进换卡 key
-- [ ] chip 无 scale 弹簧；换卡同时运行动画层 ≤ 2
-- [ ] 暗色模式下 `depth_*` 对比可读
-- [ ] `./gradlew :libui:assembleDebug` 通过
+## 12. 开发检查
 
----
-
-## 10. 变更记录
-
-| 版本 | 日期 | 变更 |
-|---|---|---|
-| v1.0 | — | 初版 Chunky 改皮方案 |
-| v1.1 | 2026-06 | 对齐实现：M3 8dp 栅格；分段进度；卡面填满；AnimatedContent 快照修复；通用 FollowUp 二级选单；移除健身子步骤横滑与 chip scale 弹簧 |
-| v1.2 | 2026-06 | 出门/工作补 FollowUp；Chip 双列栅格 + 未选描边；二级标题 `SectionTitleStyle`；对勾 fade 无横向展开 |
+- [ ] 页面没有新增裸 `dp`、颜色值或动画时长。
+- [ ] 一屏不超过一个 Primary 主操作。
+- [ ] 可点击控件触控目标不低于 48dp。
+- [ ] 状态同时有文字或图标，不只依赖颜色。
+- [ ] 卡片没有重复内容 padding 或无意义硬阴影。
+- [ ] 顶部栏、FAB、空/错/加载状态复用 `libui`。
+- [ ] Feature 没有依赖其他 Feature。
+- [ ] Light/Dark Theme 都能辨认文字与状态。
+- [ ] Android lint、单元测试与 `:app:assembleDebug` 通过。

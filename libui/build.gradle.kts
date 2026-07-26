@@ -25,8 +25,6 @@ android {
 }
 
 dependencies {
-  implementation(project(":foundation"))
-
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.graphics)
@@ -37,6 +35,5 @@ dependencies {
 
   debugImplementation(libs.androidx.compose.ui.tooling)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
-
   testImplementation(libs.junit)
 }

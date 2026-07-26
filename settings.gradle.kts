@@ -24,6 +24,10 @@ dependencyResolutionManagement {
 
 rootProject.name = "lifeplanner"
 include(":app")
-include(":libroom")
-include(":foundation")
 include(":libui")
+include(":core:domain")
+include(":core:database")
+include(":feature:todo")
+include(":feature:schedule")
+include(":feature:dishes")
+include(":feature:inventory")

@@ -1,6 +1,7 @@
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
+  alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -35,13 +36,18 @@ android {
 }
 
 dependencies {
-  implementation(project(":foundation"))
-  implementation(project(":libroom"))
+  implementation(project(":core:domain"))
+  implementation(project(":core:database"))
   implementation(project(":libui"))
+  implementation(project(":feature:todo"))
+  implementation(project(":feature:schedule"))
+  implementation(project(":feature:dishes"))
+  implementation(project(":feature:inventory"))
 
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.compose.material3)
+  implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
@@ -52,6 +58,7 @@ dependencies {
   implementation(libs.koin.android)
   implementation(libs.koin.androidx.compose)
   implementation(libs.kotlinx.coroutines.android)
+  implementation(libs.kotlinx.serialization.json)
 
   testImplementation(libs.junit)
   androidTestImplementation(platform(libs.androidx.compose.bom))
