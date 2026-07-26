@@ -23,7 +23,6 @@ LifePlanner 是一款离线优先的 Android 个人生活管理应用，用统�
 | 数据 | Room |
 | 异步 | Kotlin Coroutines + Flow |
 | 构建 | Gradle KTS + Version Catalog |
-| 测试 | JUnit + Compose UI Test |
 
 ## 模块架构
 
@@ -107,3 +106,4 @@ Feature 之间不直接依赖；Feature 不访问 DAO 或 Room Entity；`libui` 
 - 新 UI 优先复用 `libui` 组件；没有复用价值的 Feature 私有组件留在 Feature 内。
 - 不在页面中新增任意 `dp`、颜色值或动画时长；确有新规格时先扩展 token。
 - 状态不能只靠颜色区分，必须配合文字、图标或形状。
+- 项目不维护自动化测试源码与测试依赖；默认质量门禁为 `.\gradlew.bat lintDebug --console=plain`。
