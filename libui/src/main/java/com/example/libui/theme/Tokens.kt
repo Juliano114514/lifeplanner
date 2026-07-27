@@ -24,6 +24,7 @@ object AppSize {
   val fab = 56.dp
   val progress = 8.dp
   val calendarCell = 48.dp
+  val calendarRecordIndicator = 4.dp
   val calendarSelection = 36.dp
   val timelineHourLabel = 52.dp
   val foodPreviewCard = 168.dp
@@ -32,6 +33,7 @@ object AppSize {
 object AppStroke {
   val default = 1.dp
   val selected = 2.dp
+  val today = 1.dp
 }
 
 object AppElevation {

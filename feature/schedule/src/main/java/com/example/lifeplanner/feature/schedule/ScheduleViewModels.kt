@@ -39,6 +39,7 @@ data class ScheduleUiState(
   val selectedDate: LocalDate = LocalDate.now(),
   val daySchedule: DaySchedule = DaySchedule(LocalDate.now()),
   val schedulable: List<TodoItem> = emptyList(),
+  val recordedDates: Set<LocalDate> = emptySet(),
   val isLoading: Boolean = true,
   val errorMessage: String? = null,
 )
@@ -54,6 +55,11 @@ class ScheduleViewModel(
   private var initialized = false
 
   init {
+    viewModelScope.launch {
+      scheduleRepository.observeRecordedDates()
+        .catch { error -> _state.update { it.copy(errorMessage = error.message) } }
+        .collect { dates -> _state.update { it.copy(recordedDates = dates) } }
+    }
     viewModelScope.launch {
       selectedDate.flatMapLatest { date ->
         combine(

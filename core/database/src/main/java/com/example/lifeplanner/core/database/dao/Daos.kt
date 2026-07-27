@@ -87,6 +87,9 @@ interface ScheduleDao {
   )
   fun observeDay(date: String): Flow<List<ScheduleBlockRow>>
 
+  @Query("SELECT DISTINCT date FROM schedule_block WHERE is_archived = 0")
+  fun observeRecordedDates(): Flow<List<String>>
+
   @Query("SELECT * FROM schedule_block WHERE id = :id LIMIT 1")
   suspend fun getBlock(id: Long): ScheduleBlockEntity?
 

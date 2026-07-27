@@ -1,20 +1,23 @@
 package com.example.lifeplanner.core.database.repository
 
+import androidx.room.withTransaction
 import com.example.lifeplanner.core.database.AppDatabase
 import com.example.lifeplanner.core.database.dao.DiaryDao
 import com.example.lifeplanner.core.database.entity.DiaryDayEntity
 import com.example.lifeplanner.core.database.entity.DiaryEntryEntity
 import com.example.lifeplanner.core.database.mapper.toDomain
 import com.example.lifeplanner.core.domain.model.DiaryDay
+import com.example.lifeplanner.core.domain.model.DiaryDayDraft
 import com.example.lifeplanner.core.domain.model.DiaryEntry
 import com.example.lifeplanner.core.domain.model.DiaryEntryDraft
 import com.example.lifeplanner.core.domain.repository.DiaryRepository
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 
 class DiaryRepositoryImpl(
-  database: AppDatabase,
+  private val database: AppDatabase,
   private val dao: DiaryDao = database.diaryDao(),
 ) : DiaryRepository {
   override fun observeDay(date: LocalDate): Flow<DiaryDay> {
@@ -30,6 +33,11 @@ class DiaryRepositoryImpl(
       )
     }
   }
+
+  override fun observeRecordedDates(): Flow<Set<LocalDate>> =
+    dao.observeRecordedDates().map { dates ->
+      dates.mapTo(mutableSetOf(), LocalDate::parse)
+    }
 
   override suspend fun getEntry(id: Long): DiaryEntry? = dao.getEntry(id)?.toDomain()
 
@@ -71,6 +79,15 @@ class DiaryRepositoryImpl(
           updatedAt = System.currentTimeMillis(),
         ),
       )
+    }
+  }
+
+  override suspend fun saveDay(draft: DiaryDayDraft) {
+    database.withTransaction {
+      draft.entries
+        .filter { it.content.isNotBlank() }
+        .forEach { saveEntry(it.copy(date = draft.date)) }
+      saveDayText(draft.date, draft.text)
     }
   }
 }

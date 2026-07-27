@@ -30,3 +30,9 @@ data class DiaryEntryDraft(
   val type: DiaryEntryType,
   val content: String,
 )
+
+data class DiaryDayDraft(
+  val date: LocalDate,
+  val entries: List<DiaryEntryDraft>,
+  val text: String,
+)

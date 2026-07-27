@@ -128,6 +128,11 @@ fun DiaryEditorRoute(
   var selectedEntry by remember { mutableStateOf<DiaryEntry?>(null) }
   var openedEntryId by rememberSaveable(entryId) { mutableStateOf<Long?>(null) }
   LaunchedEffect(epochDay) { viewModel.initialize(epochDay) }
+  LaunchedEffect(viewModel) {
+    viewModel.effect.collect { effect ->
+      if (effect == DiaryEffect.Saved) onBack()
+    }
+  }
   LaunchedEffect(entryId, state.isLoading, state.day.entries) {
     if (!state.isLoading && entryId != null && openedEntryId != entryId) {
       state.day.entries.firstOrNull { it.id == entryId }?.let {
@@ -157,7 +162,7 @@ fun DiaryEditorRoute(
         onCreateEntry = viewModel::createEntry,
         onEntryLongClick = { selectedEntry = it },
         onDayTextChange = viewModel::updateDayText,
-        onSaveDayText = viewModel::saveDayText,
+        onSaveAll = viewModel::saveAll,
         modifier = Modifier.padding(padding),
       )
     }
@@ -199,6 +204,7 @@ private fun DiaryTabContent(
       AppDateNavigator(
         date = state.selectedDate,
         onDateChange = onDateChange,
+        isDateRecorded = state.recordedDates::contains,
       )
     }
     diaryEntriesSection(
@@ -248,9 +254,10 @@ private fun DiaryEditorContent(
   onCreateEntry: (DiaryEntryType) -> Unit,
   onEntryLongClick: (DiaryEntry) -> Unit,
   onDayTextChange: (String) -> Unit,
-  onSaveDayText: () -> Unit,
+  onSaveAll: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  val entryInputsEnabled = !state.isSaving && state.savingEntryType == null
   LazyColumn(
     modifier = modifier.fillMaxSize(),
     contentPadding = PaddingValues(AppSpacing.lg),
@@ -263,6 +270,7 @@ private fun DiaryEditorContent(
       entries = state.day.entriesOf(DiaryEntryType.HAPPY),
       draft = state.happyDraft,
       isSaving = state.savingEntryType == DiaryEntryType.HAPPY,
+      enabled = entryInputsEnabled,
       onDraftChange = onDraftChange,
       onCreateEntry = onCreateEntry,
       onEntryLongClick = onEntryLongClick,
@@ -274,6 +282,7 @@ private fun DiaryEditorContent(
       entries = state.day.entriesOf(DiaryEntryType.UNHAPPY),
       draft = state.unhappyDraft,
       isSaving = state.savingEntryType == DiaryEntryType.UNHAPPY,
+      enabled = entryInputsEnabled,
       onDraftChange = onDraftChange,
       onCreateEntry = onCreateEntry,
       onEntryLongClick = onEntryLongClick,
@@ -292,12 +301,14 @@ private fun DiaryEditorContent(
           label = { Text("完整记录") },
           modifier = Modifier.fillMaxWidth(),
           minLines = 8,
+          enabled = !state.isSaving,
         )
         AppButton(
           text = "保存日记",
-          onClick = onSaveDayText,
+          onClick = onSaveAll,
           modifier = Modifier.fillMaxWidth(),
-          loading = state.isSavingDayText,
+          enabled = state.savingEntryType == null,
+          loading = state.isSaving,
         )
         if (state.day.text.isNotBlank()) {
           AppCard(
@@ -352,6 +363,7 @@ private fun LazyListScope.diaryEditorSection(
   entries: List<DiaryEntry>,
   draft: String,
   isSaving: Boolean,
+  enabled: Boolean,
   onDraftChange: (DiaryEntryType, String) -> Unit,
   onCreateEntry: (DiaryEntryType) -> Unit,
   onEntryLongClick: (DiaryEntry) -> Unit,
@@ -375,11 +387,12 @@ private fun LazyListScope.diaryEditorSection(
         label = { Text("新增条目") },
         modifier = Modifier.weight(1f),
         singleLine = true,
+        enabled = enabled,
       )
       AppButton(
         text = "添加",
         onClick = { onCreateEntry(type) },
-        enabled = draft.isNotBlank(),
+        enabled = enabled && draft.isNotBlank(),
         loading = isSaving,
         leadingIcon = Icons.Rounded.Add,
       )

@@ -113,6 +113,7 @@ fun ScheduleRoute(
         AppDateNavigator(
           date = state.selectedDate,
           onDateChange = viewModel::selectDate,
+          isDateRecorded = state.recordedDates::contains,
           modifier = Modifier.padding(horizontal = AppSpacing.lg),
         )
         Row(

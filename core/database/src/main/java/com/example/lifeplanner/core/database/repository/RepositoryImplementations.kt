@@ -171,6 +171,11 @@ class ScheduleRepositoryImpl(
       ScheduleRules.withConflicts(date, rows.map { it.toDomain() })
     }
 
+  override fun observeRecordedDates(): Flow<Set<LocalDate>> =
+    scheduleDao.observeRecordedDates().map { dates ->
+      dates.mapTo(mutableSetOf(), LocalDate::parse)
+    }
+
   override suspend fun getBlock(id: Long): ScheduleBlock? = scheduleDao.getBlock(id)?.toDomain()
 
   override suspend fun saveBlock(draft: ScheduleBlockDraft): Long {

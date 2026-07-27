@@ -23,6 +23,15 @@ interface DiaryDao {
   @Query("SELECT * FROM diary_day WHERE date = :date")
   fun observeDay(date: String): Flow<DiaryDayEntity?>
 
+  @Query(
+    """
+    SELECT date FROM diary_entry
+    UNION
+    SELECT date FROM diary_day
+    """,
+  )
+  fun observeRecordedDates(): Flow<List<String>>
+
   @Query("SELECT * FROM diary_entry WHERE id = :id")
   suspend fun getEntry(id: Long): DiaryEntryEntity?
 

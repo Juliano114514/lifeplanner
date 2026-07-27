@@ -31,6 +31,7 @@ interface TaskRepository {
 
 interface ScheduleRepository {
   fun observeDay(date: LocalDate): Flow<DaySchedule>
+  fun observeRecordedDates(): Flow<Set<LocalDate>>
   suspend fun getBlock(id: Long): ScheduleBlock?
   suspend fun saveBlock(draft: ScheduleBlockDraft): Long
   suspend fun scheduleTask(

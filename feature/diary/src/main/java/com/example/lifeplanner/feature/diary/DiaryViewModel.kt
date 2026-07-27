@@ -3,14 +3,18 @@ package com.example.lifeplanner.feature.diary
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lifeplanner.core.domain.model.DiaryDay
+import com.example.lifeplanner.core.domain.model.DiaryDayDraft
 import com.example.lifeplanner.core.domain.model.DiaryEntryDraft
 import com.example.lifeplanner.core.domain.model.DiaryEntryType
 import com.example.lifeplanner.core.domain.repository.DiaryRepository
 import java.time.LocalDate
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
@@ -22,8 +26,9 @@ data class DiaryUiState(
   val happyDraft: String = "",
   val unhappyDraft: String = "",
   val dayTextDraft: String = "",
+  val recordedDates: Set<LocalDate> = emptySet(),
   val savingEntryType: DiaryEntryType? = null,
-  val isSavingDayText: Boolean = false,
+  val isSaving: Boolean = false,
   val isLoading: Boolean = true,
   val errorMessage: String? = null,
 ) {
@@ -33,6 +38,10 @@ data class DiaryUiState(
   }
 }
 
+sealed interface DiaryEffect {
+  data object Saved : DiaryEffect
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiaryViewModel(
   private val repository: DiaryRepository,
@@ -40,10 +49,19 @@ class DiaryViewModel(
   private val selectedDate = MutableStateFlow(LocalDate.now())
   private val _state = MutableStateFlow(DiaryUiState())
   val state: StateFlow<DiaryUiState> = _state.asStateFlow()
+  private val _effect = MutableSharedFlow<DiaryEffect>()
+  val effect: SharedFlow<DiaryEffect> = _effect.asSharedFlow()
   private var initialized = false
   private var dayTextDirty = false
 
   init {
+    viewModelScope.launch {
+      repository.observeRecordedDates()
+        .catch { error ->
+          _state.update { it.copy(errorMessage = error.message ?: "日记日期加载失败") }
+        }
+        .collect { dates -> _state.update { it.copy(recordedDates = dates) } }
+    }
     viewModelScope.launch {
       selectedDate
         .flatMapLatest { date ->
@@ -104,7 +122,9 @@ class DiaryViewModel(
   }
 
   fun createEntry(type: DiaryEntryType) {
-    val content = state.value.draftFor(type).trim()
+    val current = state.value
+    if (current.isSaving || current.savingEntryType != null) return
+    val content = current.draftFor(type).trim()
     if (content.isEmpty()) {
       _state.update { it.copy(errorMessage = "请输入条目内容") }
       return
@@ -144,20 +164,49 @@ class DiaryViewModel(
     _state.update { it.copy(dayTextDraft = value) }
   }
 
-  fun saveDayText() {
-    val date = selectedDate.value
-    val text = state.value.dayTextDraft
+  fun saveAll() {
+    val current = state.value
+    if (current.isSaving || current.savingEntryType != null) return
+    val entries = buildList {
+      current.happyDraft.takeIf(String::isNotBlank)?.let { content ->
+        add(DiaryEntryDraft(date = current.selectedDate, type = DiaryEntryType.HAPPY, content = content))
+      }
+      current.unhappyDraft.takeIf(String::isNotBlank)?.let { content ->
+        add(
+          DiaryEntryDraft(
+            date = current.selectedDate,
+            type = DiaryEntryType.UNHAPPY,
+            content = content,
+          ),
+        )
+      }
+    }
     viewModelScope.launch {
-      _state.update { it.copy(isSavingDayText = true, errorMessage = null) }
-      runCatching { repository.saveDayText(date, text) }
+      _state.update { it.copy(isSaving = true, errorMessage = null) }
+      runCatching {
+        repository.saveDay(
+          DiaryDayDraft(
+            date = current.selectedDate,
+            entries = entries,
+            text = current.dayTextDraft,
+          ),
+        )
+      }
         .onSuccess {
           dayTextDirty = false
-          _state.update { it.copy(isSavingDayText = false) }
+          _state.update {
+            it.copy(
+              happyDraft = "",
+              unhappyDraft = "",
+              isSaving = false,
+            )
+          }
+          _effect.emit(DiaryEffect.Saved)
         }
         .onFailure { error ->
           _state.update {
             it.copy(
-              isSavingDayText = false,
+              isSaving = false,
               errorMessage = error.message ?: "日记保存失败",
             )
           }
