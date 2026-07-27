@@ -6,11 +6,14 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.lifeplanner.core.database.dao.DiaryDao
 import com.example.lifeplanner.core.database.dao.QuickPlanDao
 import com.example.lifeplanner.core.database.dao.ScheduleDao
 import com.example.lifeplanner.core.database.dao.ShoppingDao
 import com.example.lifeplanner.core.database.dao.StockDao
 import com.example.lifeplanner.core.database.dao.TaskDao
+import com.example.lifeplanner.core.database.entity.DiaryDayEntity
+import com.example.lifeplanner.core.database.entity.DiaryEntryEntity
 import com.example.lifeplanner.core.database.entity.FoodDetailsEntity
 import com.example.lifeplanner.core.database.entity.QuickPlanAnswerEntity
 import com.example.lifeplanner.core.database.entity.QuickPlanDraftEntity
@@ -34,8 +37,10 @@ import com.example.lifeplanner.core.database.entity.TaskOccurrenceEntity
     FoodDetailsEntity::class,
     StockSnapshotEntity::class,
     ShoppingEntryEntity::class,
+    DiaryEntryEntity::class,
+    DiaryDayEntity::class,
   ],
-  version = 7,
+  version = 8,
   exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -44,6 +49,7 @@ abstract class AppDatabase : RoomDatabase() {
   abstract fun quickPlanDao(): QuickPlanDao
   abstract fun stockDao(): StockDao
   abstract fun shoppingDao(): ShoppingDao
+  abstract fun diaryDao(): DiaryDao
 
   companion object {
     @Volatile
@@ -55,7 +61,13 @@ abstract class AppDatabase : RoomDatabase() {
           context.applicationContext,
           AppDatabase::class.java,
           "lifeplanner.db",
-        ).addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+        ).addMigrations(
+          MIGRATION_3_4,
+          MIGRATION_4_5,
+          MIGRATION_5_6,
+          MIGRATION_6_7,
+          MIGRATION_7_8,
+        )
           .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2)
           .build()
           .also { instance = it }
@@ -128,6 +140,39 @@ abstract class AppDatabase : RoomDatabase() {
         )
         db.execSQL(
           "ALTER TABLE `schedule_block` ADD COLUMN `completed_at` INTEGER",
+        )
+      }
+    }
+
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+          """
+          CREATE TABLE IF NOT EXISTS `diary_entry` (
+            `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            `date` TEXT NOT NULL,
+            `type` TEXT NOT NULL,
+            `content` TEXT NOT NULL,
+            `created_at` INTEGER NOT NULL,
+            `updated_at` INTEGER NOT NULL
+          )
+          """.trimIndent(),
+        )
+        db.execSQL(
+          """
+          CREATE INDEX IF NOT EXISTS `index_diary_entry_date_type_created_at`
+          ON `diary_entry` (`date`, `type`, `created_at`)
+          """.trimIndent(),
+        )
+        db.execSQL(
+          """
+          CREATE TABLE IF NOT EXISTS `diary_day` (
+            `date` TEXT NOT NULL,
+            `content` TEXT NOT NULL,
+            `updated_at` INTEGER NOT NULL,
+            PRIMARY KEY(`date`)
+          )
+          """.trimIndent(),
         )
       }
     }
