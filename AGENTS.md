@@ -5,7 +5,7 @@
 ## 事实与边界
 
 - 架构、产品范围和模块职责冲突时，以根目录 `README.md` 为准。
-- 模块固定为 `:app`、`:libui`、`:core:domain`、`:core:database`、`:feature:todo|schedule|dishes|inventory`。
+- 模块固定为 `:app`、`:libui`、`:core:domain`、`:core:database`、`:feature:todo|schedule|diary|dishes|inventory`。
 - `:app` 只负责 Application、依赖组装、导航和顶层页面结构。
 - `:libui` 只放主题、token 和无业务状态的通用 Compose 组件。
 - `:core:domain` 只放领域模型、纯规则和 Repository 接口。

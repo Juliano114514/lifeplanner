@@ -1,11 +1,12 @@
 # LifePlanner
 
-LifePlanner 是一款离线优先的 Android 个人生活管理应用，用统一的任务、日程、菜品、库存与采购模型降低日常记录成本。
+LifePlanner 是一款离线优先的 Android 个人生活管理应用，用统一的任务、日程、日记、菜品、库存与采购模型降低日常记录成本。
 
 ## 功能
 
 - **任务**：Dialog 新增、长按修改、置顶、DDL、重复规则、完成/跳过、归档和今日日程同步展示。
 - **日程**：月历、24 小时时间轴、完成标记、时间冲突提示，以及按早午晚细化事项与地点的八步快速安排；向导末步可直接创建当日待办。
+- **日记**：按日期记录开心与不开心的紧凑条目和完整正文；支持预览、修改、删除，并通过独立编辑页集中整理。
 - **菜品**：食材与熟食余量、保质期、存放位置、临期提示和快速安排中的可用菜品概览。
 - **库存**：数量、百分比、状态三种记录方式和低库存提醒。
 - **采购**：自动汇总低库存项目，也支持手动添加与购入量回写。
@@ -31,6 +32,7 @@ flowchart TB
     App[":app<br/>Application / DI / NavHost"]
     Todo[":feature:todo"]
     Schedule[":feature:schedule"]
+    Diary[":feature:diary"]
     Dishes[":feature:dishes"]
     Inventory[":feature:inventory"]
     Domain[":core:domain<br/>模型 / 规则 / Repository 接口"]
@@ -39,6 +41,7 @@ flowchart TB
 
     App --> Todo
     App --> Schedule
+    App --> Diary
     App --> Dishes
     App --> Inventory
     App --> Database
@@ -46,11 +49,13 @@ flowchart TB
 
     Todo --> Domain
     Schedule --> Domain
+    Diary --> Domain
     Dishes --> Domain
     Inventory --> Domain
 
     Todo --> UI
     Schedule --> UI
+    Diary --> UI
     Dishes --> UI
     Inventory --> UI
 
@@ -77,6 +82,10 @@ app → core:database → core:domain
 
 Feature 之间不直接依赖；Feature 不访问 DAO 或 Room Entity；`libui` 不包含 ViewModel、Repository、导航或业务模型。
 
+主界面采用“任务 → 日程 → 日记 → 菜品 → 库存”五个类型安全顶层目的地。日记完整编辑使用 `:feature:diary` 内的独立 `DiaryEditorActivity`，由 `:app` 负责注册和启动。
+
+当前 Room schema 为 v8。v7 → v8 迁移只新增 `diary_entry` 与 `diary_day`，既有任务、日程、快速安排、库存和采购数据结构保持不变。
+
 ## UI 设计系统
 
 当前设计语言为 **Calm Playful（克制活力）**：
@@ -94,7 +103,8 @@ Feature 之间不直接依赖；Feature 不访问 DAO 或 Room Entity；`libui` 
 - `AppButton`：Primary、Secondary、Outline、Text、Danger 五级按钮。
 - `AppCard`：Default、Tonal、Selected 三种容器层级。
 - `AppChoiceChip`：统一单选/多选视觉与 48dp 触控高度。
-- `AppTopBar` / `AppFab`：统一页面导航与新增入口。
+- `AppTopBar` / `AppFab`：统一页面导航与新增入口；FAB 在固定 56dp 内同时显示图标和短标签。
+- `AppDateNavigator`：五格日期视口支持横向滑动；初始缓存选中日 ±10 天，触边后按 10 天扩展，更新选中日期时才轻量重居中，长按打开日期选择器。
 - `AppLoadingState` / `AppEmptyState` / `AppErrorState`：统一反馈状态。
 - `AppStatusBadge` / `AppSectionHeader`：统一状态与信息层级。
 
