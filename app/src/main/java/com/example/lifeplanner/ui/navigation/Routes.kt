@@ -12,6 +12,9 @@ data class ScheduleRoute(
 )
 
 @Serializable
+data object DiaryRoute
+
+@Serializable
 data object DishesRoute
 
 @Serializable

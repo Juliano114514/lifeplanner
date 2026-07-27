@@ -39,6 +39,7 @@ dependencies {
   implementation(project(":libui"))
   implementation(project(":feature:todo"))
   implementation(project(":feature:schedule"))
+  implementation(project(":feature:diary"))
   implementation(project(":feature:dishes"))
   implementation(project(":feature:inventory"))
 
